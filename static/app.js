@@ -90,21 +90,25 @@ const shared = takeShared().catch(() => '');
 if (msg && ask && run && status && strings && labels) {
   ask.hidden = false;
   ask.addEventListener('click', askFamily);
-  msg.addEventListener('input', () => { $('result').hidden = true; });
+  msg.addEventListener('input', () => {
+    $('result').hidden = true;
+    $('fallback').hidden = false;
+  });
   import('/rules.js')
     .then(async (rules) => {
       check = rules.check;
       run.hidden = false;
       run.addEventListener('click', runCheck);
       const text = await shared;
-      if (opened && text) {
+      if (opened && text && !msg.value) {
         msg.value = text;
         show(check(text));
+        $('result').focus(); // so screen readers announce the verdict that appeared without a tap
       }
     })
     .catch(async () => {
       // Rules failed to load: still show a shared message so the user can ask family.
       const text = await shared;
-      if (opened && text) msg.value = text;
+      if (opened && text && !msg.value) msg.value = text;
     });
 }

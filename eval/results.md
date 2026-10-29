@@ -35,6 +35,34 @@ Hand-written templates filled with fake values. Written by the same person who w
 | Genuine messages | Value |
 | --- | --- |
 | False alarm (called likely scam) | 0.0% (0/62) |
+| Templates with any false alarm | 0/17 (one bad template moves the rate by about 5.9%) |
 | Called be careful | 0.0% (0/62) |
 
-Speed: 0.039 ms per check in Node on a desktop CPU. Not yet measured on a low-end Android phone.
+## Review set
+
+Hand-written cases that code review showed the first rules got wrong. Used to fix the rules, so not held out: it guards against those mistakes coming back.
+
+26 messages from 26 templates or sources.
+
+| Scam messages | Value |
+| --- | --- |
+| Flagged (likely scam or be careful) | 100.0% (11/11) |
+| Called likely scam | 100.0% (11/11) |
+| Right scam type, when flagged | 100.0% (11/11) |
+
+| Type | Messages | Precision | Recall |
+| --- | --- | --- | --- |
+| kyc | 5 | 100.0% (5/5) | 100.0% (5/5) |
+| bill | 1 | 100.0% (1/1) | 100.0% (1/1) |
+| otp | 4 | 80.0% (4/5) | 100.0% (4/4) |
+| family | 1 | 100.0% (1/1) | 100.0% (1/1) |
+
+| Genuine messages | Value |
+| --- | --- |
+| False alarm (called likely scam) | 0.0% (0/15) |
+| Templates with any false alarm | 0/15 (one bad template moves the rate by about 6.7%) |
+| Called be careful | 6.7% (1/15) |
+
+Genuine messages flagged: r-g-12 (careful: otp)
+
+Speed: 0.037 ms per check in Node on a desktop CPU. Not yet measured on a low-end Android phone.

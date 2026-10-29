@@ -27,7 +27,10 @@ test('every type and sign the rules can return has text in every language', asyn
     }
     for (const v of ['likely', 'careful', 'none']) assert.ok(s.verdicts[v]?.title, `${lang}: verdict ${v}`);
   }
-  for (const v of Object.values(strings.check.verdicts)) assert.doesNotMatch(v.title, /safe/i);
+  for (const lang of ['en', 'hi', 'mr']) {
+    const s = JSON.parse(await readFile(new URL(`../src/strings/${lang}.json`, import.meta.url), 'utf8')).check;
+    for (const v of Object.values(s.verdicts)) assert.doesNotMatch(v.title, /safe|सुरक्षित/i, `${lang}: ${v.title}`);
+  }
 });
 
 test('asking for an OTP is a hard sign; a genuine "do not share" OTP is not', () => {
@@ -39,7 +42,8 @@ test('asking for an OTP is a hard sign; a genuine "do not share" OTP is not', ()
 });
 
 test('links: official domains pass, lookalikes, shorteners and .apk files do not', () => {
-  assert.deepEqual(findLinks('Track: https://amzn.in/d/abc, pay rk12@okaxis or mail a@b.com'), [{ host: 'amzn.in', path: '/d/abc' }]);
+  assert.deepEqual(findLinks('Track: https://amzn.in/d/abc, pay rk12@okaxis or mail a@b.com'), [{ host: 'amzn.in', path: '/d/abc', userinfo: false }]);
+  assert.deepEqual(findLinks('KYC:https://onlinesbi.sbi@evil.xyz/a?x=b@c').map((l) => [l.host, l.userinfo]), [['evil.xyz', true]]);
   assert.equal(check('Track your order: https://amzn.in/d/xyz').verdict, 'none');
   assert.equal(check('Login at https://www.onlinesbi.sbi or https://sbi.bank.in').verdict, 'none');
   assert.ok(check('Update now https://sbi-kyc-update.com/x').signs.includes('lookalike'));
@@ -57,6 +61,15 @@ test('amounts with decimals do not break sentence-bounded patterns', () => {
 test('Hindi and Marathi scams are recognised', () => {
   assert.equal(check('आपका बिजली कनेक्शन आज रात काट दिया जाएगा। तुरंत संपर्क करें 9876543210').type, 'bill');
   assert.equal(check('अभिनंदन! तुम्ही लॉटरीमध्ये ₹10,00,000 जिंकले आहात').type, 'prize');
+});
+
+test('review set: every scam found in code review is likely, no genuine message is', async () => {
+  const rows = (await readFile(new URL('../data/review/review.jsonl', import.meta.url), 'utf8')).trim().split('\n').map((l) => JSON.parse(l));
+  for (const r of rows) {
+    const { verdict } = check(r.text);
+    if (r.label === 'scam') assert.equal(verdict, 'likely', `${r.id}: ${r.text}`);
+    else assert.notEqual(verdict, 'likely', `${r.id}: ${r.text}`);
+  }
 });
 
 test('the committed test sets are frozen: the generator still produces them byte for byte', async () => {

@@ -1,6 +1,6 @@
 // Scores the Check rules on every test set that is present and writes eval/results.md.
 // Usage: node eval/run.mjs [--split dev|test]   (default test; dev is for tuning, test is what we publish)
-// Sets: data/synthetic/<split>.jsonl always; data/advisory/advisory.jsonl and
+// Sets: data/synthetic/<split>.jsonl and data/review/review.jsonl always; data/advisory/advisory.jsonl and
 // data/public/SMSSpamCollection when they exist (both are collected on a machine that can reach the sources).
 import { readFile, writeFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
@@ -37,6 +37,8 @@ export function score(rows) {
       n: genuine.length,
       falseAlarm: res('genuine').filter((r) => r.out.verdict === 'likely').length,
       careful: res('genuine').filter((r) => r.out.verdict === 'careful').length,
+      templates: new Set(genuine.map((r) => r.template ?? r.id)).size,
+      alarmTemplates: new Set(res('genuine').filter((r) => r.out.verdict === 'likely').map((r) => r.template ?? r.id)).size,
     },
     perType,
     misses: res('scam').filter((r) => r.out.verdict === 'none').map((r) => r.id),
@@ -88,6 +90,7 @@ function section(title, s, note) {
     lines.push(
       '| Genuine messages | Value |', '| --- | --- |',
       `| False alarm (called likely scam) | ${pct(s.genuine.falseAlarm, s.genuine.n)} (${s.genuine.falseAlarm}/${s.genuine.n}) |`,
+      `| Templates with any false alarm | ${s.genuine.alarmTemplates}/${s.genuine.templates} (one bad template moves the rate by about ${pct(1, s.genuine.templates)}) |`,
       `| Called be careful | ${pct(s.genuine.careful, s.genuine.n)} (${s.genuine.careful}/${s.genuine.n}) |`, '',
     );
   }
@@ -101,6 +104,9 @@ export async function run(split = 'test') {
   const synthetic = await readJsonl(new URL(`../data/synthetic/${split}.jsonl`, import.meta.url));
   sets.push([`Synthetic ${split} set`, score(synthetic),
     'Hand-written templates filled with fake values. Written by the same person who wrote the rules, so treat these numbers as an upper bound.']);
+  const review = await readJsonl(new URL('../data/review/review.jsonl', import.meta.url));
+  sets.push(['Review set', score(review),
+    'Hand-written cases that code review showed the first rules got wrong. Used to fix the rules, so not held out: it guards against those mistakes coming back.']);
   const advisory = await loadOptional(new URL('../data/advisory/advisory.jsonl', import.meta.url),
     (raw) => validateAdvisory(raw.split('\n').filter((l) => l.trim()).map((l) => JSON.parse(l))));
   if (advisory?.length) sets.push(['Advisory set', score(advisory), 'Real scam texts quoted in official advisories, labelled by hand. The most realistic test.']);

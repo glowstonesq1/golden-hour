@@ -10,6 +10,7 @@ Checked on 29 Oct 2026. Results for each set are in [eval/results.md](../eval/re
 | --- | --- | --- | --- |
 | Synthetic dev | Hand-written templates in `synthetic/generate.mjs`, this repo, MIT | 132 messages from 37 templates (76 scam, 56 genuine) | Frozen. Used to tune rules |
 | Synthetic test | Same generator, different templates | 138 messages from 39 templates (76 scam, 62 genuine) | Frozen. Scored, never tuned on, except once (see below) |
+| Review | Hand-written in `review/review.jsonl`, this repo, MIT | 26 (11 scam, 15 genuine) | Cases code review showed the first rules got wrong (OTP requests with "don't worry", delivery OTPs, real RBI/SBI Card/HDFC links, links glued to text). Used to fix the rules, so **not held out**; `npm test` keeps them fixed |
 | Advisory | Scam texts quoted in official advisories from I4C, RBI, banks and Sanchar Saathi | 0 | **Not collected yet.** Needs a machine that can reach those sites |
 | UCI SMS Spam Collection | [UCI 228](https://archive.ics.uci.edu/dataset/228/), CC BY 4.0, Almeida and Hidalgo (2011), DOI 10.24432/C5CC84 | 5,574 (only the genuine "ham" half is scored) | **Not downloaded yet.** Blocked from the build workspace |
 | Hinglish scam dataset | [bolewara/hinglish-scam-text-dataset](https://huggingface.co/bolewara/hinglish-scam-text-dataset), CC BY 4.0, Anuj Bolewar | 3,787 (35 Hinglish scam) | Not used yet; its English part duplicates UCI |
@@ -23,6 +24,7 @@ The synthetic counts come from `node data/synthetic/generate.mjs`. `npm test` fa
 - **The effective sample size is the number of templates, not messages.** Four fills of one template differ only in amounts, names and links, so 76 scam messages are closer to 22 independent examples in the test set.
 - **The test set was looked at once.** The first test run missed one template (a tax refund with a decimal amount). That exposed a general bug (decimal points ended the sentence windows), which was fixed. Both runs are recorded in the README.
 - **Hindi and Marathi templates were written by the same author, not native speakers,** like the app's own Hindi and Marathi text.
+- **The synthetic genuine set missed whole classes of real messages.** Code review found delivery OTPs, "pin code" requests, referral codes and links to real RBI, NPCI, SBI Card and HDFC domains all wrongly called "likely scam", while the synthetic test set still showed 0 false alarms. A clean synthetic score is weak evidence; the review set now guards those cases.
 - Public spam datasets are mostly promotions, not fraud, and are not Indian. They only measure false alarms on real genuine messages.
 
 ## How to add the missing sets (on your own machine)

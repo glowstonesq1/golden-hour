@@ -47,9 +47,11 @@ On the synthetic test set (138 messages, 39 templates):
 | First run, rules never tuned on test | 94.7% | 77.6% | 0 of 62 |
 | After fixing the bug that run exposed | 100% | 82.9% | 0 of 62 |
 
+A code review then found mistakes this set could not catch: "don't worry, just share the OTP" was missed, and genuine delivery OTPs and links to rbi.org.in or sbicard.com were called "likely scam". Those were fixed and kept as a separate review set (`data/review/`), which `npm test` checks on every run. It is not a held-out test.
+
 Read these numbers sceptically. They come from synthetic data written by the same person who wrote the rules, and 76 scam messages come from only 22 templates. They have not been checked on real users' messages. The real test is the advisory set of scam texts quoted in official advisories, which is not collected yet (see the data card).
 
-Known gaps: scams with no link and no explicit demand for money (a Hindi "CBI warrant" message, a "double your money" pitch) get "be careful", not "likely scam"; a scam that reads like an ordinary conversation gets "no common scam signs found", which is why that verdict always says it does not mean safe.
+Known gaps: a message mentioning delivery is never treated as an OTP request, because couriers really ask for one at the door, so "share the OTP to receive your parcel" relies on the parcel rules instead. Scams with no link and no explicit demand for money (a Hindi "CBI warrant" message, a "double your money" pitch) get "be careful", not "likely scam"; a scam that reads like an ordinary conversation gets "no common scam signs found", which is why that verdict always says it does not mean safe.
 
 ## Deploy to Vercel (free tier)
 

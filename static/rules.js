@@ -18,41 +18,62 @@ const OFFICIAL = [
   'phonepe.com', 'pay.google.com', 'amazon.in', 'amzn.in', 'amzn.to', 'flipkart.com', 'fkrt.it',
   'airtel.in', 'jio.com', 'jiomart.com', 'bsesdelhi.com', 'tatapower.com', 'tatapower-ddl.com',
   'mahadiscom.in', 'adanielectricity.com', 'irctc.co.in', 'bluedart.com', 'delhivery.com', 'dtdc.in',
-  'fedex.com', 'dhl.com', 'swiggy.com', 'zomato.com', 'bank.in', 'gov.in', 'nic.in',
+  'fedex.com', 'dhl.com', 'swiggy.com', 'zomato.com', 'sbicard.com', 'hdfcbk.io', 'hdfclife.com',
+  'icicidirect.com', 'amazonpay.in', 'jiohotstar.com', 'rbi.org.in', 'npci.org.in', 'mygov.in',
+  'bank.in', 'gov.in', 'nic.in',
 ];
-const BRANDS = /sbi|yono|hdfc|icici|axis|kotak|pnb|canara|baroda|unionbank|paytm|phonepe|gpay|googlepay|amazon|flipkart|indiapost|bluedart|delhivery|dtdc|fedex|dhl|airtel|jio|bses|tatapower|mahadiscom|mahavitaran|msedcl|adani|incometax|uidai|aadhaa?r|epfo|npci|rbi|irctc|trai|gov/;
+// Brand names are matched at the start or end of a host label ("onlinesbi-verify", "sbi-kyc"),
+// never in the middle of a word ("orbit", "training"). "gov" must be a whole label part.
+const BRAND_PART = /^(sbi|yono|hdfc|icici|axis|kotak|pnb|canara|baroda|unionbank|paytm|phonepe|gpay|googlepay|amazon|flipkart|indiapost|bluedart|delhivery|dtdc|fedex|dhl|airtel|jio|bses|tatapower|mahadiscom|mahavitaran|msedcl|adani|incometax|uidai|aadhaa?r|epfo|npci|rbi|irctc)|(sbi|yono|hdfc|icici|axis|kotak|pnb|canara|baroda|unionbank|paytm|phonepe|gpay|amazon|flipkart|indiapost|bluedart|delhivery|dtdc|fedex|airtel|bses|tatapower|mahadiscom|mahavitaran|msedcl|incometax|uidai|epfo|npci|irctc)$|^gov$/;
+const hasBrand = (host) => host.split(/[.-]/).some((part) => BRAND_PART.test(part));
 
-const TLDS = 'com|in|net|org|co|io|ly|me|xyz|top|info|app|site|online|link|live|club|shop|gd|gl|at|cc|id|to|sbi|it|apk';
-const BARE_HOST = new RegExp(`^[a-z0-9-]+(\\.[a-z0-9-]+)*\\.(${TLDS})(\\/\\S*)?$`, 'i');
+// Bare hosts (no scheme) need a lowercase TLD, so run-together sentences ("sent.To check") are not links.
+const TLDS = 'com|in|net|org|co|io|ly|me|xyz|top|info|app|site|online|link|live|club|shop|gd|gl|at|cc|id|to|sbi|it|apk|icu|sbs|cfd|vip|buzz|cyou';
+const BARE_HOST = new RegExp(`^[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)*\\.(${TLDS})(\\/\\S*)?$`);
+const SCHEME_URL = /(?:https?:\/\/|www\.)[^\s<>"']+/gi;
 
 const isOfficial = (host) => OFFICIAL.some((d) => host === d || host.endsWith(`.${d}`));
 
 export function findLinks(text) {
-  const links = [];
+  // Scheme links are found anywhere, even glued to text ("KYC:https://..."); bare hosts only as whole words.
+  const found = [...text.matchAll(SCHEME_URL)].map((m) => m[0]);
   for (const raw of text.split(/\s+/)) {
     const token = raw.replace(/^[(<"']+|[)>"'.,;:!?।]+$/g, '');
-    if (token.includes('@')) continue; // UPI IDs and email addresses are not links
-    if (!/^(https?:\/\/|www\.)/i.test(token) && !BARE_HOST.test(token)) continue;
-    const rest = token.replace(/^https?:\/\//i, '');
-    const host = rest.split(/[/?#:]/)[0].toLowerCase().replace(/^www\./, '');
-    if (!host.includes('.')) continue;
-    links.push({ host, path: rest.slice(rest.split(/[/?#]/)[0].length).toLowerCase() });
+    if (/https?:\/\/|www\./i.test(token) || token.includes('@')) continue; // UPI IDs and emails are not links
+    if (BARE_HOST.test(token)) found.push(token);
   }
-  return links;
+  return found.map((raw) => {
+    const rest = raw.replace(/[)>"'.,;:!?।]+$/, '').replace(/^https?:\/\//i, '');
+    const authority = rest.split(/[/?#]/)[0];
+    const at = authority.lastIndexOf('@'); // "https://onlinesbi.sbi@evil.xyz" really goes to evil.xyz
+    const host = authority.slice(at + 1).split(':')[0].toLowerCase().replace(/^www\./, '').replace(/\.$/, '');
+    return { host, path: rest.slice(authority.length).split(/[?#]/)[0].toLowerCase(), userinfo: at >= 0 };
+  }).filter((l) => l.host.includes('.'));
 }
 
 // Sign detectors. Hard signs alone make a message a likely scam.
-// Negation can sit before the verb (English, Hindi) or after it (Marathi "सांगू नका"), so look on both sides.
-const NEGATION = /(?:^|[\s,.])(not|never|don'?t|dont|na|mat|नहीं|ना|न|मत|नका|नये|कोणालाही|किसी को)(?=[\s,.]|$)/i;
+// Only secrets count: a bare "pin" or "code" is usually a pin code or a referral code.
+const SECRET = String.raw`(otp|one[- ]time password|upi pin|atm pin|mpin|cvv|password|verification code|\d+[- ]digit code)`;
+// Each pattern is [regex, where the verb sits]. Negation counts only right next to the verb, so a scammer's
+// "don't worry" or "don't tell anyone" elsewhere in the message does not cancel the request.
 const OTP_ASK = [
-  /\b(share|send|tell|give|forward|provide|read out|confirm)\b[^.?!]{0,25}\b(otp|one[- ]time password|upi pin|pin|cvv|password|code)\b/gi,
-  /\b(otp|code|pin)\b[^.?!]{0,30}\b(batao|bata do|batado|bhejo|bhej do|share karo|send karo|bolo)\b/gi,
-  /(ओटीपी|ओ\.टी\.पी\.|otp|पिन)[^।.?!]{0,30}(बताएं|बताइए|बताओ|बता दो|भेजें|भेजो|शेयर करें|सांगा|पाठवा)/gi,
+  [new RegExp(String.raw`\b(share|send|tell|give|forward|provide|read out|confirm)\b[^.?!]{0,25}\b${SECRET}\b`, 'gi'), 'start'],
+  [/\b(otp|upi pin|mpin|cvv)\b[^.?!]{0,30}\b(batao|bata do|batado|bhejo|bhej do|share karo|send karo|bolo)\b/gi, 'end'],
+  [/(ओटीपी|ओ\.टी\.पी\.|otp|यूपीआई पिन|upi pin)[^।.?!]{0,30}(बताएं|बताइए|बताओ|बता दो|भेजें|भेजो|शेयर करें|सांगा|पाठवा)/gi, 'end'],
 ];
+const NEG_BEFORE_START = /\b(not|never|don'?t|dont)\s+(\w+\s+)?$/i;
+const NEG_BEFORE_END = /(?:^|\s)(mat|na|nahi|nahin|मत|न|नहीं)\s+\S+(\s\S+)?$/i;
+const NEG_AFTER = /^\s*(नका|नये)/;
+const DELIVERY_OTP = /\b(deliver(y|ed)?|delivery (agent|executive|partner))\b/i; // couriers really do ask for an OTP at the door
+
 function asksForSecret(text) {
-  for (const re of OTP_ASK) {
+  for (const [re, verbAt] of OTP_ASK) {
     for (const m of text.matchAll(re)) {
-      if (!NEGATION.test(text.slice(Math.max(0, m.index - 30), m.index + m[0].length + 12))) return true;
+      const end = m.index + m[0].length;
+      const negated = verbAt === 'start'
+        ? NEG_BEFORE_START.test(text.slice(Math.max(0, m.index - 20), m.index))
+        : NEG_BEFORE_END.test(m[0]) || NEG_AFTER.test(text.slice(end, end + 10));
+      if (!negated && !DELIVERY_OTP.test(text.slice(m.index, end + 50))) return true;
     }
   }
   return false;
@@ -62,7 +83,8 @@ const SIGNS = {
   screenShare: (t) => /\b(any ?desk|team ?viewer|quick ?support|rust ?desk|airdroid|ultra ?viewer|screen[- ]?shar(e|ing))\b/i.test(t),
   otpAsk: asksForSecret,
   collect: (t) =>
-    /\b(scan|approve|accept|enter)\b[^.?!]{0,40}\b(upi pin|pin|qr|request)\b[^.?!]{0,30}\b(receive|get|claim|credit)/i.test(t) ||
+    /\b(approve|accept|enter)\b[^.?!]{0,40}\b(upi pin|pin|request)\b[^.?!]{0,30}\b(receive|get|claim|credit)/i.test(t) ||
+    /\bscan\b[^.?!]{0,40}\bqr\b[^.?!]{0,30}\b(receive|claim)\b/i.test(t) ||
     /\b(receive|get|claim)\b[^.?!]{0,40}\b(scan|approve|enter)\b[^.?!]{0,30}\b(upi pin|pin|qr|request)\b/i.test(t),
   money: (t) =>
     /\b(pay|deposit|transfer|send|bhejo|bhej do|jama karo)\b[^.?!]{0,40}(rs\.?|₹|inr|rupees|rupaye|fee|charge|amount|money|paise|tax|fine)/i.test(t) ||
@@ -75,7 +97,7 @@ const SIGNS = {
 
 const LINK_SIGNS = (links) => ({
   apk: links.some((l) => l.path.endsWith('.apk') || l.host.endsWith('.apk')),
-  lookalike: links.some((l) => /^\d+\.\d+\.\d+\.\d+$/.test(l.host) || (BRANDS.test(l.host) && !isOfficial(l.host))),
+  lookalike: links.some((l) => l.userinfo || /^\d+\.\d+\.\d+\.\d+$/.test(l.host) || (hasBrand(l.host) && !isOfficial(l.host))),
   shortLink: links.some((l) => SHORTENERS.has(l.host)),
   unknownLink: links.some((l) => !isOfficial(l.host) && !SHORTENERS.has(l.host)),
 });
@@ -104,9 +126,9 @@ const TYPES = {
   ],
   family: [
     /\b(this is my new number|my phone (is )?(broke|broken|lost|damaged)|his phone is broken)\b|मेरा नया नंबर|माझा नवीन नंबर/i,
-    [/\b(mum|mom|mummy|dad|papa|maa|beta|uncle|aunty|son|daughter)\b|मम्मी|पापा|आई|बाबा/i,
+    [/\b(mum|mom|mummy|dad|papa|maa|beta|uncle|aunty|son|daughter)\b|मम्मी|पापा|(?:^|[\s,])(आई|बाबा)(?=[\s,।!?]|$)/i,
       /\b(accident|hospital|urgent(ly)?|need money|send|bhejo|operation)\b|अस्पताल|एक्सीडेंट|अपघात|तुरंत|पैसे/i],
-    [/\b(accident|hospital|operation)\b|अस्पताल|एक्सीडेंट|अपघात/i, /\b(send|transfer|bhejo|money|rs|₹)\b|भेज|पैसे/i],
+    [/\b(accident|hospital|operation)\b|अस्पताल|एक्सीडेंट|अपघात/i, /\b(send|transfer|bhejo|money|rs)\b|₹|भेज|पैसे/i],
   ],
   invest: [
     /\b(guaranteed|assured|fixed)\s+(returns?|profit|income)\b|पक्का रिटर्न|गारंटी|हमखास परतावा/i,
@@ -137,7 +159,7 @@ const TYPES = {
     /\b(customs|clearance|redelivery|re-delivery)\s+(fee|charge|duty)\b/i,
   ],
   bill: [
-    [/\b(electricity|power|light|bijli)\b|बिजली|वीज/i, /\b(disconnect(ed)?|cut)\b|काट|खंडित/i, /\b(tonight|today|9[.:]30|immediately)\b|आज रात/i],
+    [/\b(electricity|power|light|bijli)\b|बिजली|वीज/i, /\b(disconnect(ed)?|cut)\b|काट|खंडित/i, /\b(tonight|today|9[.:]?30|immediately)\b|आज रात/i],
     /\bbill (was |is )?not (been )?updated\b|बिल अपडेट नहीं|बिल अपडेट नाही/i,
     /\b(electricity|bijli) (officer|office|department)\b/i,
   ],

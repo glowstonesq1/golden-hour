@@ -1,0 +1,26 @@
+{"id": "r-otp-1", "template": "r-otp-1", "label": "scam", "type": "otp", "text": "Tell me the OTP now. Do not tell anyone about this call."}
+{"id": "r-otp-2", "template": "r-otp-2", "label": "scam", "type": "otp", "text": "Sir don't worry, just share the OTP you received"}
+{"id": "r-otp-3", "template": "r-otp-3", "label": "scam", "type": "otp", "text": "मुझे OTP बता दो, किसी को मत बताना"}
+{"id": "r-otp-4", "template": "r-otp-4", "label": "scam", "type": "otp", "text": "jaldi OTP batao na, warna account block ho jayega"}
+{"id": "r-kyc-1", "template": "r-kyc-1", "label": "scam", "type": "kyc", "text": "Update KYC:https://sbi-kyc-update.com/x your account will be blocked"}
+{"id": "r-kyc-2", "template": "r-kyc-2", "label": "scam", "type": "kyc", "text": "केवाईसी अपडेट करें:https://bit.ly/abc123"}
+{"id": "r-kyc-3", "template": "r-kyc-3", "label": "scam", "type": "kyc", "text": "Your YONO account is blocked. Verify now https://onlinesbi.sbi@evil.xyz/login"}
+{"id": "r-kyc-4", "template": "r-kyc-4", "label": "scam", "type": "kyc", "text": "Your SBI account will be blocked. Install the new YONO app http://x12.in/YONO.apk?v=2"}
+{"id": "r-kyc-5", "template": "r-kyc-5", "label": "scam", "type": "kyc", "text": "https://sbi-kyc-update.com/x?id=a@b your KYC is pending, update now"}
+{"id": "r-bill-1", "template": "r-bill-1", "label": "scam", "type": "bill", "text": "Your electricity will be disconnected at 9.30 pm tonight, power cut. Call 9876543210"}
+{"id": "r-family-1", "template": "r-family-1", "label": "scam", "type": "family", "text": "Mom I lost my phone, this is my new number. Send ₹5000 urgently"}
+{"id": "r-g-1", "template": "r-g-1", "label": "genuine", "type": null, "text": "Share OTP 4821 with the delivery executive to receive your order. -Amazon"}
+{"id": "r-g-2", "template": "r-g-2", "label": "genuine", "type": null, "text": "Please share your full address with pin code for delivery."}
+{"id": "r-g-3", "template": "r-g-3", "label": "genuine", "type": null, "text": "Share your referral code with friends and earn Rs 100 on their first order."}
+{"id": "r-g-4", "template": "r-g-4", "label": "genuine", "type": null, "text": "अपना पता और पिनकोड भेजें।"}
+{"id": "r-g-5", "template": "r-g-5", "label": "genuine", "type": null, "text": "Pay your SBI Card bill at https://www.sbicard.com"}
+{"id": "r-g-6", "template": "r-g-6", "label": "genuine", "type": null, "text": "RBI says: beware of fraudulent calls. Know more at https://rbi.org.in"}
+{"id": "r-g-7", "template": "r-g-7", "label": "genuine", "type": null, "text": "Visit https://www.mygov.in for details."}
+{"id": "r-g-8", "template": "r-g-8", "label": "genuine", "type": null, "text": "Watch the match live on https://www.jiohotstar.com"}
+{"id": "r-g-9", "template": "r-g-9", "label": "genuine", "type": null, "text": "Rs 500 debited from a/c XX1234. Details: hdfcbk.io/abc -HDFC Bank"}
+{"id": "r-g-10", "template": "r-g-10", "label": "genuine", "type": null, "text": "Login at https://sbi.co.in./ to view your statement."}
+{"id": "r-g-11", "template": "r-g-11", "label": "genuine", "type": null, "text": "बधाई हो, आपकी आईडी तैयार है, पैसे जमा हो गए।"}
+{"id": "r-g-12", "template": "r-g-12", "label": "genuine", "type": null, "text": "Scan the QR at the counter to get 5% cashback."}
+{"id": "r-g-13", "template": "r-g-13", "label": "genuine", "type": null, "text": "Rs 500 sent.To check balance dial *99#"}
+{"id": "r-g-14", "template": "r-g-14", "label": "genuine", "type": null, "text": "NPCI: never share your UPI PIN with anyone. Learn more at https://www.npci.org.in"}
+{"id": "r-g-15", "template": "r-g-15", "label": "genuine", "type": null, "text": "Training starts Monday at the orbit hall."}

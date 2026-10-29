@@ -91,6 +91,7 @@ check(!(await cacheHas(page)), 'share: shared text deleted from the cache after 
 check((await page.locator('#result').getAttribute('data-verdict')) === 'likely', 'share: verdict shown without a tap');
 check((await page.textContent('#verdict')).trim() === 'शायद धोखा है', 'share: verdict in Hindi');
 check(await page.locator('#fallback').isHidden(), 'share: static fallback hidden once a verdict shows');
+check(await page.evaluate("document.activeElement?.id === 'result'"), 'share: focus moves to the verdict for screen readers');
 check(await page.locator('#ask').isVisible(), "JS: 'Ask my family' button shown");
 if (SHOTS) await page.screenshot({ path: `${SHOTS}/check-hi-shared.png`, fullPage: true });
 
