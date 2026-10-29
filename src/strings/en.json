@@ -1,0 +1,176 @@
+{
+  "langName": "English",
+  "langLabel": "Language",
+  "mtNote": "",
+  "siteName": "Golden Hour",
+  "home": {
+    "title": "Golden Hour: help in the first hour after a scam",
+    "lead": "Lost money to an online scam? The first hour matters most.",
+    "helpTitle": "I lost money",
+    "helpSub": "Step-by-step help for the next hour",
+    "checkTitle": "I got a suspicious message",
+    "checkSub": "Check it before you reply, pay or click"
+  },
+  "call": {
+    "label": "Call 1930 now",
+    "sub": "Cyber crime helpline. Free, 24 hours."
+  },
+  "footer": {
+    "disclaimer": "Not a government service. Not legal advice. Nothing you type here leaves your phone.",
+    "terms": "Terms",
+    "privacy": "Privacy",
+    "source": "Source code"
+  },
+  "sourceLabel": "Source",
+  "help": {
+    "title": "Lost money? Do these now",
+    "lead": "Do them in this order. Even if hours or days have passed, still do every step.",
+    "steps": [
+      {
+        "title": "Call 1930",
+        "body": "Say you lost money in online fraud. Keep your bank SMS open: they will ask for the amount, the time and the transaction ID (UTR). Write down the complaint number they give you.",
+        "source": "https://cybercrime.gov.in/"
+      },
+      {
+        "title": "Block your card and UPI",
+        "body": "Call your bank on the number printed on your card or shown in the bank's own app. Never use a number that came in a message or a search ad.",
+        "source": ""
+      },
+      {
+        "title": "Finish the complaint online within 24 hours",
+        "body": "On cybercrime.gov.in, choose financial fraud and enter your 1930 complaint number. Add screenshots of the transaction and the chat.",
+        "source": "https://nicdc.in/images/instructions_citizenreportingcyberfrauds_nw.pdf"
+      },
+      {
+        "title": "Tell your bank in writing",
+        "body": "Use the bank app's fraud option or email the bank, and keep the complaint number. For frauds from 1 January 2027, tell your bank and 1930 within 5 days: small losses may then be compensated.",
+        "source": "https://www.rbi.org.in/scripts/BS_PressReleaseDisplay.aspx?prid=63011"
+      },
+      {
+        "title": "Keep every proof",
+        "body": "Do not delete messages, chats, call logs or the scammer's UPI ID. Take screenshots now.",
+        "source": ""
+      }
+    ],
+    "noLossTitle": "No money lost yet?",
+    "noLossBody": "Report the call or message on Chakshu (sancharsaathi.gov.in) so the number can be blocked.",
+    "noLossLink": "https://sancharsaathi.gov.in/sfc/",
+    "portalLink": "https://cybercrime.gov.in/"
+  },
+  "check": {
+    "title": "Check a message",
+    "label": "Paste the message here",
+    "run": "Check this message",
+    "fallback": "The automatic check needs JavaScript. Until then, stop if a message:",
+    "signs": [
+      "asks for an OTP, PIN or password",
+      "asks you to pay first to get money, a job or a prize",
+      "threatens arrest, a blocked account or a cut connection, and rushes you",
+      "has a link or an app you were not expecting"
+    ],
+    "ask": "Ask my family",
+    "paid": "I already paid",
+    "copied": "Copied. Paste it to someone you trust.",
+    "empty": "Paste or share a message first.",
+    "shareIntro": "Is this message real? Please take a look before I reply:",
+    "copyFail": "The message is selected. Copy it and send it to someone you trust.",
+    "resultIntro": "Golden Hour check:",
+    "signsTitle": "Signs found",
+    "disclaimer": "This check runs on your phone and can be wrong. Not legal advice. Rules are drafts until checked against official advisories.",
+    "verdicts": {
+      "likely": {
+        "title": "Likely scam",
+        "body": "Do not pay, click, reply or share any code."
+      },
+      "careful": {
+        "title": "Be careful",
+        "body": "Some scam signs. Before you act, check with your bank or family on a number you already know."
+      },
+      "none": {
+        "title": "No common scam signs found",
+        "body": "This does not mean it is safe. If it asks for money, an OTP or an app install, stop."
+      }
+    },
+    "types": {
+      "kyc": {
+        "name": "KYC update or account block",
+        "rule": "Banks never ask you to update KYC through a link in a message."
+      },
+      "arrest": {
+        "name": "Police, CBI or customs (digital arrest)",
+        "rule": "No agency arrests anyone or collects money over a video call."
+      },
+      "parcel": {
+        "name": "Parcel or customs fee",
+        "rule": "Pay delivery charges only inside the courier's own app."
+      },
+      "bill": {
+        "name": "Electricity or bill disconnection",
+        "rule": "Pay bills only through the provider's own app or website."
+      },
+      "job": {
+        "name": "Job or task offer",
+        "rule": "A real employer never asks you to pay to get or keep a job."
+      },
+      "invest": {
+        "name": "Investment or trading group",
+        "rule": "Guaranteed high returns from a WhatsApp group are a scam."
+      },
+      "loan": {
+        "name": "Loan app",
+        "rule": "Lenders must be RBI-registered; never install a lending app from a link."
+      },
+      "prize": {
+        "name": "Prize, lottery or refund",
+        "rule": "You cannot win something you never entered."
+      },
+      "otp": {
+        "name": "OTP or screen-sharing request",
+        "rule": "Never share an OTP or install a screen-sharing app for anyone."
+      },
+      "family": {
+        "name": "Family emergency",
+        "rule": "Call the family member on their known number before paying."
+      },
+      "threat": {
+        "name": "Threat or sextortion",
+        "rule": "Do not pay; report at cybercrime.gov.in."
+      },
+      "unknown": {
+        "name": "Suspicious message",
+        "rule": "Do not open links or install apps from a message you did not expect."
+      }
+    },
+    "signNames": {
+      "apk": "A link to install an app file (.apk)",
+      "screenShare": "Asks you to install a screen-sharing app",
+      "otpAsk": "Asks for an OTP, PIN or password",
+      "collect": "Asks you to enter your UPI PIN or approve a request to receive money",
+      "lookalike": "A link pretending to be a bank, company or government site",
+      "shortLink": "A shortened link that hides where it goes",
+      "unknownLink": "A link to a website that is not a known official site",
+      "money": "Asks you to pay or send money",
+      "urgency": "Rushes or threatens you"
+    }
+  },
+  "terms": {
+    "title": "Terms",
+    "body": [
+      "Golden Hour is an independent open-source project. It is not run by or connected to the Government of India, I4C, RBI or any bank.",
+      "It gives general information from official public sources. It is not legal or financial advice, and it cannot recover money.",
+      "Always follow the instructions of the 1930 operator, the police and your bank.",
+      "The checker can be wrong. A message it does not flag can still be a scam.",
+      "Use it at your own risk. The software is provided as is, under the MIT licence."
+    ]
+  },
+  "privacy": {
+    "title": "Privacy",
+    "body": [
+      "Golden Hour has no server that receives what you type, paste or share. Everything is processed on your phone.",
+      "The app keeps no history. A message you share to it is kept on your phone only until the next page opens, then deleted.",
+      "There are no accounts, cookies, ads or analytics.",
+      "Shares are handled on your phone by the installed app. If the app's stored files were cleared, open the app once before sharing; otherwise a share can reach our web host, which rejects it.",
+      "Links to cybercrime.gov.in, sancharsaathi.gov.in and your phone dialer open outside the app."
+    ]
+  }
+}
