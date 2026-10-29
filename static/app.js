@@ -87,6 +87,9 @@ if (opened) history.replaceState(null, '', location.pathname);
 
 const shared = takeShared().catch(() => '');
 
+// The report maker loads only on its own page; if it fails, the page keeps its no-JavaScript message.
+if ($('report-form')) import('/report.js').catch(() => {});
+
 if (msg && ask && run && status && strings && labels) {
   ask.hidden = false;
   ask.addEventListener('click', askFamily);

@@ -31,6 +31,12 @@ async function share(page, action, fields) {
   }, [action, Object.entries(fields)]);
 }
 
+// Polls from Node: page-side waitForFunction strings need eval, which the app's CSP rightly blocks.
+async function until(cond, ms = 5000) {
+  for (const end = Date.now() + ms; Date.now() < end; await new Promise((r) => setTimeout(r, 50))) if (await cond()) return true;
+  throw new Error('timed out waiting for the page');
+}
+
 const cacheHas = (page) => page.evaluate("caches.open('gh-share').then(c => c.match('/__shared__')).then(r => !!r)");
 
 const browser = await chromium.launch();
@@ -45,6 +51,9 @@ await page.goto(`${BASE}/check/`);
 check(await page.locator('#ask').isHidden(), "no-JS: 'Ask my family' stays hidden on Check");
 check(await page.locator('#run').isHidden(), 'no-JS: Check button stays hidden');
 check(await page.locator('#fallback').isVisible(), 'no-JS: static scam signs are shown');
+await page.goto(`${BASE}/report/`);
+check(await page.locator('#nojs').isVisible() && await page.locator('#report-form').isHidden(), 'no-JS: report page explains it needs JavaScript');
+check((await page.locator('a[href="tel:1930"]').count()) >= 1, 'no-JS: report page still has the 1930 button');
 await ctx.close();
 
 // 2. With JavaScript: service worker installs, CSP raises no violations, pages work offline.
@@ -139,6 +148,101 @@ await p2.fill('#msg', 'Congratulations! You won Rs 25,00,000 in the KBC lucky dr
 await p2.click('#run');
 if (SHOTS) await p2.screenshot({ path: `${SHOTS}/check-en-dark.png`, fullPage: true });
 await ctx2.close();
+
+// 6. Report maker. Speech and on-device AI are faked so both paths of each run in a headless browser.
+const SMS = 'Dear Customer, your A/c XX4821 is debited by Rs.12,000.00 on 28-Oct-26 trf to Ramesh Kumar Refno 482910384756. -SBI\n\n'
+  + 'Rs.1,499.50 debited from a/c **4821 on 28-Oct-26 to VPA refund221@ybl (UPI Ref No 773829104857). -HDFC Bank';
+const fakes = ({ onDevice }) => {
+  class FakeRecognition {
+    static async available() { return 'available'; }
+    start() { window.__started = { local: !!this.processLocally }; setTimeout(() => this.onresult?.({ resultIndex: 0, results: [Object.assign([{ transcript: 'He called from 9876543210 and said my KYC expired.' }], { isFinal: true })] }), 50); }
+    stop() { this.onend?.(); }
+    abort() { this.onend?.(); }
+  }
+  if (!onDevice) delete FakeRecognition.available;
+  Object.defineProperty(window, 'SpeechRecognition', { value: FakeRecognition, configurable: true });
+  Object.defineProperty(window, 'Summarizer', { configurable: true, value: {
+    availability: async () => 'available',
+    create: async () => ({ summarize: async () => window.__summary, destroy() {} }),
+  } });
+};
+const rctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+await rctx.addInitScript(fakes, { onDevice: true });
+const rp = await rctx.newPage();
+rp.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+rp.on('pageerror', (e) => errors.push(String(e)));
+await rp.goto(`${BASE}/help/`);
+await rp.click('a.report-card');
+await rp.waitForURL(`${BASE}/report/`);
+check(await rp.locator('#report-form').isVisible() && await rp.locator('#nojs').isHidden(), 'Help links to the report maker, which loads');
+await rp.click('.report-form > button.primary');
+check((await rp.innerText('#form-status')).trim() !== '', 'report: an empty story explains what to do');
+await rp.click('#mic');
+await until(async () => (await rp.inputValue('#story')).includes('9876543210'));
+check(await rp.evaluate('window.__started.local') && !(await rp.locator('dialog').count()), 'mic: on-device speech is used without asking');
+await rp.click('#mic');
+await rp.fill('#sms', SMS);
+await rp.fill('#name', 'Sunita Deshpande');
+await rp.fill('#mobile', '9123456780');
+await rp.selectOption('#channel', 'call');
+await rp.click('.report-form > button.primary');
+await rp.locator('#review').waitFor();
+check((await rp.locator('#payments .payment').count()) === 2, 'report: two payments found in the pasted SMS');
+check((await rp.inputValue('#contacts')).includes('9876543210'), "report: the scammer's number is listed");
+let doc = await rp.innerText('#doc');
+check(doc.includes('Rs 13,499.50') && doc.includes('482910384756') && doc.includes('Sunita Deshpande') && doc.includes('Phone call'), 'report: letter has total, UTR, name and contact method');
+check(doc.includes('KYC update or account block'), 'report: fraud type named from the story');
+await rp.fill('#pay-0-amount', '10,000.00');
+check((await rp.innerText('#doc')).includes('Rs 11,499.50'), 'report: editing an amount updates the total');
+await rp.fill('#ack', '31910280012345');
+check((await rp.innerText('#doc')).includes('31910280012345'), 'report: adding the 1930 number updates the letter');
+if (SHOTS) await rp.screenshot({ path: `${SHOTS}/report-review.png` });
+
+check(await rp.locator('#ai').isVisible(), 'AI: summary button shown where on-device AI exists');
+await rp.evaluate("window.__summary = 'They took Rs 99,999 after calling from 9876543210.'");
+await rp.click('#ai-run');
+await until(async () => (await rp.textContent('#ai-status')).length > 0 && await rp.isEnabled('#ai-run'));
+check(await rp.locator('#ai-result').isHidden() && !(await rp.innerText('#doc')).includes('99,999'), 'AI: a summary with an invented amount is thrown away');
+await rp.evaluate("window.__summary = 'A caller from 9876543210 said the KYC expired; Rs 12,000.00 and Rs 1,499.50 were taken.'");
+await rp.click('#ai-run');
+await rp.locator('#ai-result').waitFor();
+check(!(await rp.innerText('#doc')).includes('on-device AI draft'), 'AI: summary stays out until the person confirms it');
+await rp.check('#ai-ok');
+check((await rp.innerText('#doc')).includes('on-device AI draft'), 'AI: confirmed summary goes into the letter');
+
+await rp.evaluate("navigator.share = undefined; navigator.clipboard.writeText = (t) => { window.__copied = t; return Promise.resolve(); }");
+await rp.click('#copy');
+const copiedReport = await rp.evaluate('window.__copied');
+check(copiedReport.startsWith('To,') && copiedReport.includes('Total amount lost: Rs 11,499.50'), 'report: Copy gives the full letter as text');
+await rp.click('#next-toggle');
+check(await rp.locator('#next').isVisible() && (await rp.locator('#next ol.steps li').count()) === 5, "'See the exact next steps' shows five steps");
+check((await rp.getAttribute('#next-toggle', 'aria-expanded')) === 'true', 'next steps toggle reports its state');
+if (SHOTS) await rp.screenshot({ path: `${SHOTS}/report-filled.png`, fullPage: true });
+await rp.click('#clear');
+check((await rp.inputValue('#story')) === '' && await rp.locator('#preview').isHidden() && (await rp.locator('#doc').innerText()) === '', 'Clear everything empties the page');
+await rctx.close();
+
+// Without on-device speech, the mic asks first and does nothing on "Type instead".
+const cctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+await cctx.addInitScript(fakes, { onDevice: false });
+const cp = await cctx.newPage();
+await cp.goto(`${BASE}/hi/report/`);
+await cp.locator('#mic').waitFor();
+await cp.click('#mic');
+check(await cp.locator('dialog.consent').isVisible(), 'mic: asks before sending a voice off the phone');
+check((await cp.textContent('dialog.consent h2')) === 'आपकी आवाज़ इस फ़ोन से बाहर जाएगी', 'mic: the warning is in the page language');
+await cp.locator('dialog.consent .secondary').click();
+check(!(await cp.evaluate('window.__started')) && (await cp.inputValue('#story')) === '', 'mic: "Type instead" never starts recording');
+await cp.click('#mic');
+await cp.locator('dialog.consent .primary').click();
+await until(async () => (await cp.inputValue('#story')).length > 0);
+check(await cp.evaluate('window.__started.local === false'), 'mic: after consent, cloud speech is used');
+check(await cp.locator('#ai').isHidden(), 'AI: no AI summary on Hindi pages (on-device models are English-only)');
+await cp.fill('#sms', SMS);
+await cp.click('.report-form > button.primary');
+await cp.locator('#doc').waitFor();
+check((await cp.innerText('#doc')).includes('विषय: Rs 13,499.50 की ऑनलाइन वित्तीय धोखाधड़ी की शिकायत'), 'report: Hindi letter');
+await cctx.close();
 
 const csp = errors.filter((e) => e.includes('Content Security Policy') || e.includes('Refused'));
 check(!csp.length, `no CSP violations (${csp.slice(0, 2)})`);

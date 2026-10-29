@@ -3,6 +3,7 @@
 An installable web app for people in India who have just lost money to an online scam, or who are holding a message that feels wrong. It works in English, Hindi and Marathi, and **nothing you type, paste or share leaves your phone.**
 
 - **Help** puts the 1930 cyber crime helpline one tap away, then walks through the next hour: block the card and UPI, finish the complaint on cybercrime.gov.in within 24 hours, tell the bank in writing, keep the proof. Every step links to its official source.
+- **Report** (from Help) turns the person's own story, spoken or typed, plus their pasted bank SMS and UPI receipts into a formal complaint letter for the police or the bank: amounts, dates, transaction IDs (UTR) and who was paid are copied word for word and checked by the person, the total is computed in code, and their own words go in unchanged. Print or save as PDF, copy, or share. "See the exact next steps" says what to do with it.
 - **Check** receives a suspicious message shared from WhatsApp or Messages (Android), or pasted in, and checks it on the phone. It gives one of three verdicts (likely scam, be careful, no common scam signs found; never "safe"), names the scam type, shows the one rule that breaks it and the signs it found. "Ask my family" sends the message and the verdict to someone you trust; "I already paid" jumps to Help.
 
 Status: milestones 0, 1 and 3 done; milestone 2 (data) is half done, because the advisory and public sets have to be collected on a machine that can reach those sites. See [docs/m0-verification.md](docs/m0-verification.md) for the sources behind every Help step and [data/DATA_CARD.md](data/DATA_CARD.md) for the data.
@@ -14,6 +15,8 @@ Speed decides whether money can be frozen, and the people who need this most are
 - The 1930 button is plain HTML and works before any script loads, with JavaScript off, and offline.
 - There is no backend. The app is static files; a service worker answers shares on the device, so a shared message never reaches a server or a URL.
 - Strict Content-Security-Policy, no third-party scripts, fonts or analytics.
+- Voice typing on the report page uses the phone's own on-device speech recognition when it has one. Otherwise the page asks first, because the browser then sends the voice to Google or Apple. The keyboard's own microphone always works too.
+- The optional AI summary uses the browser's built-in on-device model (Chrome's Summarizer API, English, desktop only today). Code throws the summary away if it contains any number, ID or link the person did not give, and it goes into the letter only after the person ticks that it is correct. Most phones do not have this model; the report is complete without it.
 - Hindi and Marathi pages say plainly that they are machine translated and not yet reviewed.
 
 ## Run it locally
@@ -66,7 +69,7 @@ If the repository lives somewhere other than `github.com/glowstonesq1/golden-hou
 ```
 build.mjs            generates every page, manifest and the service worker
 src/strings/*.json   all text, one file per language (same keys in each)
-static/              styles, app script, Check rules, service worker template, icons
+static/              styles, app script, Check rules, report maker, service worker template, icons
 data/                synthetic generator, frozen dev/test sets, data card
 eval/                scores the rules on every test set, writes results.md
 tests/               node:test checks, Playwright checks, local server
