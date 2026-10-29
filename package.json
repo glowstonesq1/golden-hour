@@ -1,0 +1,14 @@
+{
+  "name": "golden-hour",
+  "version": "0.1.0",
+  "description": "Installable web app that helps people in India check suspicious messages and act in the first hour after cyber fraud. Everything runs on the phone.",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node --test",
+    "serve": "node build.mjs && node tests/serve.mjs dist 8080"
+  }
+}
