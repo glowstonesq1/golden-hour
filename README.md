@@ -39,7 +39,7 @@ python3 tests/e2e.py http://127.0.0.1:8080
 2. In Vercel, choose Add New, then Project, and import the repository. Vercel reads `vercel.json`: build command `node build.mjs`, output folder `dist`, security headers included. Leave the framework preset as Other.
 3. Deploy. Open the URL on an Android phone in Chrome and choose Install app. After installing, the app appears in the share menu of WhatsApp and Messages.
 
-If the repository lives somewhere other than `github.com/kaifq1/golden-hour`, change `SOURCE_URL` in `build.mjs`.
+If the repository lives somewhere other than `github.com/glowstonesq1/golden-hour`, change `SOURCE_URL` in `build.mjs`.
 
 ## Project layout
 

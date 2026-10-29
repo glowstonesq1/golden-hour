@@ -7,7 +7,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
-export const SOURCE_URL = 'https://github.com/kaifq1/golden-hour';
+export const SOURCE_URL = 'https://github.com/glowstonesq1/golden-hour';
 export const LANGS = { en: '/', hi: '/hi/', mr: '/mr/' };
 export const PAGES = ['', 'help/', 'check/', 'terms/', 'privacy/'];
 
