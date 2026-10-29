@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { readFile, readdir, stat, mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { gzipSync } from 'node:zlib';
 import { build, esc, ext, LANGS, PAGES, CSP_META } from '../build.mjs';
 
 let out;
@@ -99,12 +100,27 @@ test('Vercel headers: strict CSP and no network destinations other than self', a
   assert.equal(headers['Referrer-Policy'], 'no-referrer');
 });
 
-test('first visit, including the whole offline precache, stays under 150 KB', async () => {
+// Measured as transfer size (hosts serve text compressed; PNGs already are).
+const gz = async (f) => {
+  const buf = await readFile(join(out, f));
+  return f.endsWith('.png') ? buf.length : gzipSync(buf, { level: 9 }).length;
+};
+
+test('the first screen (page, styles, script) downloads under 30 KB, so 1930 paints fast', async () => {
+  for (const page of ['index.html', 'help/index.html', 'hi/report/index.html']) {
+    const total = (await gz(page)) + (await gz('style.css')) + (await gz('app.js'));
+    assert.ok(total < 30 * 1024, `${page} first screen downloads ${total} bytes`);
+  }
+});
+
+// The whole offline copy is fetched in the background after the first screen. This budget was raised
+// from about 80 KB to 110 KB compressed when the report maker (three languages) joined the offline copy.
+test('the whole offline copy downloads under 110 KB', async () => {
   const sw = await read('sw.js');
   const precache = JSON.parse(sw.match(/const PRECACHE = (\[.*\]);/)[1]);
-  let total = (await stat(join(out, 'sw.js'))).size;
-  for (const f of precache) total += (await stat(join(out, f.endsWith('/') ? `${f}index.html` : f))).size;
-  assert.ok(total < 150 * 1024, `first visit is ${total} bytes`);
+  let total = await gz('sw.js');
+  for (const f of precache) total += await gz(f.endsWith('/') ? `${f}index.html` : f);
+  assert.ok(total < 110 * 1024, `offline copy downloads ${total} bytes`);
 });
 
 test('every page has exactly one h1, and the 1930 button comes before any notice', async () => {

@@ -9,7 +9,8 @@
     "helpTitle": "I lost money",
     "helpSub": "Step-by-step help for the next hour",
     "checkTitle": "I got a suspicious message",
-    "checkSub": "Check it before you reply, pay or click"
+    "checkSub": "Check it before you reply, pay or click",
+    "trust": "Free. Works offline. Nothing you type leaves your phone."
   },
   "call": {
     "label": "Call 1930 now",
@@ -55,7 +56,10 @@
     "noLossTitle": "No money lost yet?",
     "noLossBody": "Report the call or message on Chakshu (sancharsaathi.gov.in) so the number can be blocked.",
     "noLossLink": "https://sancharsaathi.gov.in/sfc/",
-    "portalLink": "https://cybercrime.gov.in/"
+    "portalLink": "https://cybercrime.gov.in/",
+    "reportTitle": "Make my complaint report",
+    "reportBody": "Speak or type what happened. Get a formal complaint ready to print, email or take to the police.",
+    "reportButton": "Start the report"
   },
   "check": {
     "title": "Check a message",
@@ -170,7 +174,160 @@
       "The app keeps no history. A message you share to it is kept on your phone only until the next page opens, then deleted.",
       "There are no accounts, cookies, ads or analytics.",
       "Shares are handled on your phone by the installed app. If the app's stored files were cleared, open the app once before sharing; otherwise a share can reach our web host, which rejects it.",
+      "Voice typing on the report page: if your phone can turn speech into text by itself, it does. If not, Golden Hour asks you first; if you agree, your browser sends your voice to Google or Apple to turn it into text. Golden Hour never receives your voice.",
       "Links to cybercrime.gov.in, sancharsaathi.gov.in and your phone dialer open outside the app."
     ]
+  },
+  "report": {
+    "title": "Make your complaint report",
+    "lead": "Speak or type what happened. Golden Hour turns it into a formal complaint you can print, email or take to the police. It takes about five minutes.",
+    "noJs": "The report maker needs JavaScript. Until then, call 1930 and follow the steps on the Help page.",
+    "storyTitle": "What happened",
+    "storyLabel": "Tell it in your own words",
+    "storyHint": "Say when it started, how they contacted you, what they said, what you paid and to whom. Any language is fine.",
+    "mic": "Speak",
+    "micStop": "Stop",
+    "micListening": "Listening. Speak now.",
+    "micLocal": "Speech is turned into text on this phone.",
+    "micDownloading": "Downloading the voice pack so your speech stays on this phone…",
+    "micKeyboard": "You can also tap the microphone on your phone's keyboard.",
+    "micDenied": "Microphone permission was refused. Type instead, or use your keyboard's microphone.",
+    "micNetwork": "Voice typing needs the internet on this phone. Type instead, or use your keyboard's microphone.",
+    "micError": "Voice typing stopped. Type instead, or tap Speak again.",
+    "consentTitle": "Your voice will leave this phone",
+    "consentBody": "This phone cannot turn speech into text by itself. If you continue, your browser sends your voice to Google (Android) or Apple (iPhone) to turn it into text. Golden Hour never receives it.",
+    "consentYes": "Use voice anyway",
+    "consentNo": "Type instead",
+    "smsTitle": "Money that left your account",
+    "smsLabel": "Paste the bank SMS or UPI receipt for each payment",
+    "smsHint": "Paste them one after another. The amount, date, transaction ID (UTR) and who was paid are copied from them.",
+    "youTitle": "Your details",
+    "name": "Full name",
+    "mobile": "Mobile number",
+    "email": "Email (optional)",
+    "address": "Address or city",
+    "incidentTitle": "About the fraud",
+    "firstContact": "Date they first contacted you",
+    "channel": "How did they contact you?",
+    "channelPick": "Choose one",
+    "channels": {
+      "call": "Phone call",
+      "whatsapp": "WhatsApp",
+      "sms": "SMS",
+      "email": "Email",
+      "social": "Social media (Instagram, Facebook, Telegram)",
+      "app": "Website or app",
+      "other": "Other"
+    },
+    "ack": "1930 complaint number (if you have one)",
+    "bank": "Your bank or wallet",
+    "recipient": "Who is this report for?",
+    "recipients": {
+      "police": "Police station or cyber cell",
+      "bank": "My bank"
+    },
+    "make": "Make my report",
+    "needStory": "First tell what happened: speak or type in the box above.",
+    "checkTitle": "Check the details we found",
+    "checkHint": "These were copied from what you gave. Fix anything that is wrong; the report changes as you type.",
+    "noPayments": "No payment was found in the pasted messages. Paste the bank SMS or UPI receipt above, or add the payment yourself.",
+    "addPayment": "Add a payment",
+    "removePayment": "Remove",
+    "paymentN": "Payment {n}",
+    "contactsLabel": "Scammer's phone numbers, UPI IDs and links (one per line)",
+    "aiButton": "Write a short summary on this device (AI)",
+    "aiWorking": "Writing the summary on this device…",
+    "aiDownloading": "Downloading the on-device AI model: {p}%",
+    "aiRejected": "The AI summary added numbers or IDs that are not in what you said, so it was not used. Your own words are in the report.",
+    "aiFailed": "The on-device AI could not write a summary. Your own words are in the report.",
+    "aiLabel": "AI summary (check every word)",
+    "aiConfirm": "I have read this summary and it is correct. Put it in the report.",
+    "aiNote": "AI can make mistakes. It checks that every number and ID is from your own words, but not the meaning. Your own words always stay in the report.",
+    "previewTitle": "Your report",
+    "print": "Print or save as PDF",
+    "copy": "Copy text",
+    "share": "Send or share",
+    "copied": "Report copied. Paste it into an email, the portal or a message.",
+    "copyFail": "Could not copy. Use Print or save as PDF instead.",
+    "nextButton": "See the exact next steps",
+    "nextTitle": "What to do with this report",
+    "next": [
+      {
+        "title": "Call 1930 if you have not yet",
+        "body": "Say you have a written report. Write the complaint number they give you into the form above; the report updates."
+      },
+      {
+        "title": "Finish the complaint on cybercrime.gov.in within 24 hours",
+        "body": "Choose financial fraud and enter your 1930 complaint number. Copy each part of this report into the matching boxes and upload your screenshots.",
+        "source": "https://nicdc.in/images/instructions_citizenreportingcyberfrauds_nw.pdf"
+      },
+      {
+        "title": "Send it to your bank",
+        "body": "Use the fraud option in your bank's app, or the email on the bank's own website. Never use a number or email that came in a message. For frauds from 1 January 2027, tell your bank and 1930 within 5 days.",
+        "source": "https://www.rbi.org.in/scripts/BS_PressReleaseDisplay.aspx?prid=63011"
+      },
+      {
+        "title": "Give a signed copy to the police",
+        "body": "Print it, sign it and take it to your nearest police station or cyber cell with your ID proof. Ask for a stamped copy as a receipt."
+      },
+      {
+        "title": "Keep every proof",
+        "body": "Do not delete the chats, SMS, call logs or the scammer's UPI ID. Keep a copy of this report."
+      }
+    ],
+    "clear": "Clear everything",
+    "cleared": "Everything you entered has been cleared from this page.",
+    "doc": {
+      "blank": "________",
+      "to": "To,",
+      "toPolice": "The Station House Officer / In-charge, Cyber Cell",
+      "toBank": "The Branch Manager / Fraud Reporting Team",
+      "dateLabel": "Date",
+      "subject": "Subject: Complaint of online financial fraud of {amount}",
+      "subjectNoAmount": "Subject: Complaint of online financial fraud",
+      "salutation": "Respected Sir or Madam,",
+      "intro": "I, {name}, mobile {mobile}, wish to report an online financial fraud committed against me.",
+      "introAck": "I have reported it on the 1930 helpline. Complaint number: {ack}.",
+      "s1": "Details of the complainant",
+      "s2": "What happened, in my own words",
+      "s2ai": "Short summary (on-device AI draft, checked by me)",
+      "s3": "Transactions",
+      "col": {
+        "when": "Date and time",
+        "amount": "Amount",
+        "mode": "Mode",
+        "utr": "Transaction ID / UTR",
+        "to": "Paid to",
+        "from": "From my account"
+      },
+      "total": "Total amount lost: {amount}",
+      "noPaymentsDoc": "Transaction details to be added.",
+      "s4": "Details of the suspect",
+      "fraudType": "Type of fraud",
+      "contactedBy": "Contacted me by",
+      "firstContact": "First contact",
+      "contactsTitle": "Phone numbers, UPI IDs and links used",
+      "s5": "Request",
+      "requestPolice": "I request you to register my complaint, take action to freeze the account or accounts that received my money, and help me recover it. Please give me a written acknowledgement with a complaint number.",
+      "requestBank": "These transactions were made as a result of fraud. I request the bank to block my card and UPI, raise a dispute for the transactions above, support the freeze request, and acknowledge this complaint in writing with a complaint number.",
+      "s6": "Documents attached",
+      "docs": [
+        "Screenshots of the transactions",
+        "Screenshots of the chat, call log or messages",
+        "Bank statement showing the transactions",
+        "Copy of my ID proof"
+      ],
+      "declaration": "I declare that the information above is true to the best of my knowledge.",
+      "signature": "Signature",
+      "place": "Place",
+      "f": {
+        "name": "Name",
+        "mobile": "Mobile",
+        "email": "Email",
+        "address": "Address",
+        "bank": "Bank or wallet"
+      },
+      "footer": "Prepared on my phone with Golden Hour, an independent tool. This is not an official form."
+    }
   }
 }
