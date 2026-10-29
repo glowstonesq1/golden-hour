@@ -1,0 +1,97 @@
+{
+  "langName": "English",
+  "langLabel": "Language",
+  "mtNote": "",
+  "siteName": "Golden Hour",
+  "home": {
+    "title": "Golden Hour: help in the first hour after a scam",
+    "lead": "Lost money to an online scam? The first hour matters most.",
+    "helpTitle": "I lost money",
+    "helpSub": "Step-by-step help for the next hour",
+    "checkTitle": "I got a suspicious message",
+    "checkSub": "Check it before you reply, pay or click"
+  },
+  "call": {
+    "label": "Call 1930 now",
+    "sub": "Cyber crime helpline. Free, 24 hours."
+  },
+  "footer": {
+    "disclaimer": "Not a government service. Not legal advice. Nothing you type here leaves your phone.",
+    "terms": "Terms",
+    "privacy": "Privacy",
+    "source": "Source code"
+  },
+  "sourceLabel": "Source",
+  "help": {
+    "title": "Lost money? Do these now",
+    "lead": "Do them in this order. Even if hours or days have passed, still do every step.",
+    "steps": [
+      {
+        "title": "Call 1930",
+        "body": "Say you lost money in online fraud. Keep your bank SMS open: they will ask for the amount, the time and the transaction ID (UTR). Write down the complaint number they give you.",
+        "source": "https://cybercrime.gov.in/"
+      },
+      {
+        "title": "Block your card and UPI",
+        "body": "Call your bank on the number printed on your card or shown in the bank's own app. Never use a number that came in a message or a search ad.",
+        "source": ""
+      },
+      {
+        "title": "Finish the complaint online within 24 hours",
+        "body": "On cybercrime.gov.in, choose financial fraud and enter your 1930 complaint number. Add screenshots of the transaction and the chat.",
+        "source": "https://nicdc.in/images/instructions_citizenreportingcyberfrauds_nw.pdf"
+      },
+      {
+        "title": "Tell your bank in writing",
+        "body": "Use the bank app's fraud option or email the bank, and keep the complaint number. For frauds from 1 January 2027, tell your bank and 1930 within 5 days: small losses may then be compensated.",
+        "source": "https://www.rbi.org.in/scripts/BS_PressReleaseDisplay.aspx?prid=63011"
+      },
+      {
+        "title": "Keep every proof",
+        "body": "Do not delete messages, chats, call logs or the scammer's UPI ID. Take screenshots now.",
+        "source": ""
+      }
+    ],
+    "noLossTitle": "No money lost yet?",
+    "noLossBody": "Report the call or message on Chakshu (sancharsaathi.gov.in) so the number can be blocked.",
+    "noLossLink": "https://sancharsaathi.gov.in/sfc/",
+    "portalLink": "https://cybercrime.gov.in/"
+  },
+  "check": {
+    "title": "Check a message",
+    "label": "Paste the message here",
+    "soon": "The automatic checker is being built. Until then, stop if a message:",
+    "signs": [
+      "asks for an OTP, PIN or password",
+      "asks you to pay first to get money, a job or a prize",
+      "threatens arrest, a blocked account or a cut connection, and rushes you",
+      "has a link or an app you were not expecting"
+    ],
+    "ask": "Ask my family",
+    "paid": "I already paid",
+    "copied": "Copied. Paste it to someone you trust.",
+    "empty": "Paste or share a message first.",
+    "shareIntro": "Is this message real? Please take a look before I reply:",
+    "copyFail": "The message is selected. Copy it and send it to someone you trust."
+  },
+  "terms": {
+    "title": "Terms",
+    "body": [
+      "Golden Hour is an independent open-source project. It is not run by or connected to the Government of India, I4C, RBI or any bank.",
+      "It gives general information from official public sources. It is not legal or financial advice, and it cannot recover money.",
+      "Always follow the instructions of the 1930 operator, the police and your bank.",
+      "The checker can be wrong. A message it does not flag can still be a scam.",
+      "Use it at your own risk. The software is provided as is, under the MIT licence."
+    ]
+  },
+  "privacy": {
+    "title": "Privacy",
+    "body": [
+      "Golden Hour has no server that receives what you type, paste or share. Everything is processed on your phone.",
+      "The app keeps no history. A message you share to it is kept on your phone only until the next page opens, then deleted.",
+      "There are no accounts, cookies, ads or analytics.",
+      "Shares are handled on your phone by the installed app. If the app's stored files were cleared, open the app once before sharing; otherwise a share can reach our web host, which rejects it.",
+      "Links to cybercrime.gov.in, sancharsaathi.gov.in and your phone dialer open outside the app."
+    ]
+  }
+}
