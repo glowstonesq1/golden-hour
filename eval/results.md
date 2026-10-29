@@ -14,9 +14,9 @@ Hand-written templates filled with fake values. Written by the same person who w
 
 | Scam messages | Value |
 | --- | --- |
-| Flagged (likely scam or be careful) | 94.7% (72/76) |
-| Called likely scam | 77.6% (59/76) |
-| Right scam type, when flagged | 100.0% (72/72) |
+| Flagged (likely scam or be careful) | 100.0% (76/76) |
+| Called likely scam | 82.9% (63/76) |
+| Right scam type, when flagged | 100.0% (76/76) |
 
 | Type | Messages | Precision | Recall |
 | --- | --- | --- | --- |
@@ -27,7 +27,7 @@ Hand-written templates filled with fake values. Written by the same person who w
 | job | 8 | 100.0% (8/8) | 100.0% (8/8) |
 | invest | 8 | 100.0% (8/8) | 100.0% (8/8) |
 | loan | 8 | 100.0% (8/8) | 100.0% (8/8) |
-| prize | 8 | 100.0% (4/4) | 50.0% (4/8) |
+| prize | 8 | 100.0% (8/8) | 100.0% (8/8) |
 | otp | 2 | 100.0% (2/2) | 100.0% (2/2) |
 | family | 8 | 100.0% (8/8) | 100.0% (8/8) |
 | threat | 5 | 100.0% (5/5) | 100.0% (5/5) |
@@ -37,6 +37,4 @@ Hand-written templates filled with fake values. Written by the same person who w
 | False alarm (called likely scam) | 0.0% (0/62) |
 | Called be careful | 0.0% (0/62) |
 
-Missed scams: prize-3.1; prize-3.2; prize-3.3; prize-3.4
-
-Speed: 0.042 ms per check in Node on a desktop CPU. Not yet measured on a low-end Android phone.
+Speed: 0.039 ms per check in Node on a desktop CPU. Not yet measured on a low-end Android phone.

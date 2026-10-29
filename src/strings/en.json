@@ -60,7 +60,8 @@
   "check": {
     "title": "Check a message",
     "label": "Paste the message here",
-    "soon": "The automatic checker is being built. Until then, stop if a message:",
+    "run": "Check this message",
+    "fallback": "The automatic check needs JavaScript. Until then, stop if a message:",
     "signs": [
       "asks for an OTP, PIN or password",
       "asks you to pay first to get money, a job or a prize",
@@ -72,7 +73,85 @@
     "copied": "Copied. Paste it to someone you trust.",
     "empty": "Paste or share a message first.",
     "shareIntro": "Is this message real? Please take a look before I reply:",
-    "copyFail": "The message is selected. Copy it and send it to someone you trust."
+    "copyFail": "The message is selected. Copy it and send it to someone you trust.",
+    "resultIntro": "Golden Hour check:",
+    "signsTitle": "Signs found",
+    "disclaimer": "This check runs on your phone and can be wrong. Not legal advice. Rules are drafts until checked against official advisories.",
+    "verdicts": {
+      "likely": {
+        "title": "Likely scam",
+        "body": "Do not pay, click, reply or share any code."
+      },
+      "careful": {
+        "title": "Be careful",
+        "body": "Some scam signs. Before you act, check with your bank or family on a number you already know."
+      },
+      "none": {
+        "title": "No common scam signs found",
+        "body": "This does not mean it is safe. If it asks for money, an OTP or an app install, stop."
+      }
+    },
+    "types": {
+      "kyc": {
+        "name": "KYC update or account block",
+        "rule": "Banks never ask you to update KYC through a link in a message."
+      },
+      "arrest": {
+        "name": "Police, CBI or customs (digital arrest)",
+        "rule": "No agency arrests anyone or collects money over a video call."
+      },
+      "parcel": {
+        "name": "Parcel or customs fee",
+        "rule": "Pay delivery charges only inside the courier's own app."
+      },
+      "bill": {
+        "name": "Electricity or bill disconnection",
+        "rule": "Pay bills only through the provider's own app or website."
+      },
+      "job": {
+        "name": "Job or task offer",
+        "rule": "A real employer never asks you to pay to get or keep a job."
+      },
+      "invest": {
+        "name": "Investment or trading group",
+        "rule": "Guaranteed high returns from a WhatsApp group are a scam."
+      },
+      "loan": {
+        "name": "Loan app",
+        "rule": "Lenders must be RBI-registered; never install a lending app from a link."
+      },
+      "prize": {
+        "name": "Prize, lottery or refund",
+        "rule": "You cannot win something you never entered."
+      },
+      "otp": {
+        "name": "OTP or screen-sharing request",
+        "rule": "Never share an OTP or install a screen-sharing app for anyone."
+      },
+      "family": {
+        "name": "Family emergency",
+        "rule": "Call the family member on their known number before paying."
+      },
+      "threat": {
+        "name": "Threat or sextortion",
+        "rule": "Do not pay; report at cybercrime.gov.in."
+      },
+      "unknown": {
+        "name": "Suspicious message",
+        "rule": "Do not open links or install apps from a message you did not expect."
+      }
+    },
+    "signNames": {
+      "apk": "A link to install an app file (.apk)",
+      "screenShare": "Asks you to install a screen-sharing app",
+      "otpAsk": "Asks for an OTP, PIN or password",
+      "collect": "Asks you to enter your UPI PIN or approve a request to receive money",
+      "lookalike": "A link pretending to be a bank, company or government site",
+      "shortLink": "A shortened link that hides where it goes",
+      "unknownLink": "A link to a website that is not a known official site",
+      "money": "Asks you to pay or send money",
+      "urgency": "Rushes or threatens you"
+    }
   },
   "terms": {
     "title": "Terms",

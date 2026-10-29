@@ -66,18 +66,32 @@ function body(s, lang, page) {
   }
   if (page === 'check/') {
     const signs = s.check.signs.map((x) => `<li>${esc(x)}</li>`).join('');
+    const labels = { intro: s.check.resultIntro, verdicts: s.check.verdicts, types: s.check.types, signNames: s.check.signNames };
+    // The result is filled by app.js with textContent only; without JavaScript the static signs list stays.
     return `${callButton(s)}
     <h1>${esc(s.check.title)}</h1>
     <label for="msg">${esc(s.check.label)}</label>
     <textarea id="msg" rows="6" autocomplete="off" spellcheck="false"></textarea>
-    <p>${esc(s.check.soon)}</p>
-    <ul class="signs">${signs}</ul>
+    <button type="button" id="run" class="run" hidden>${esc(s.check.run)}</button>
+    <section id="result" class="result" hidden tabindex="-1" aria-labelledby="verdict">
+      <h2 id="verdict"></h2>
+      <p id="verdict-body"></p>
+      <p id="type" class="type"></p>
+      <p id="rule" class="rule"></p>
+      <h3 id="signs-title" hidden>${esc(s.check.signsTitle)}</h3>
+      <ul id="found" class="signs"></ul>
+      <p class="disclaimer">${esc(s.check.disclaimer)} <a href="${p}terms/">${esc(s.footer.terms)}</a></p>
+    </section>
+    <div id="fallback">
+      <p>${esc(s.check.fallback)}</p>
+      <ul class="signs">${signs}</ul>
+    </div>
     <div class="actions">
       <button type="button" id="ask" hidden>${esc(s.check.ask)}</button>
       <a class="secondary" href="${p}help/">${esc(s.check.paid)}</a>
     </div>
     <p id="status" class="status" role="status" aria-live="polite"></p>
-    <div id="strings" hidden data-copied="${esc(s.check.copied)}" data-copy-fail="${esc(s.check.copyFail)}" data-empty="${esc(s.check.empty)}" data-intro="${esc(s.check.shareIntro)}"></div>`;
+    <div id="strings" hidden data-copied="${esc(s.check.copied)}" data-copy-fail="${esc(s.check.copyFail)}" data-empty="${esc(s.check.empty)}" data-intro="${esc(s.check.shareIntro)}" data-labels="${esc(JSON.stringify(labels))}"></div>`;
   }
   const doc = page === 'terms/' ? s.terms : s.privacy;
   return `${mtNote(s)}

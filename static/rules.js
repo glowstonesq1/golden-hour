@@ -155,13 +155,15 @@ const score = (text, patterns) =>
 export function check(input) {
   const text = String(input ?? '').slice(0, MAX_CHARS).normalize('NFC').replace(/\s+/g, ' ').trim();
   const found = { ...LINK_SIGNS(findLinks(text)) };
-  for (const [k, fn] of Object.entries(SIGNS)) found[k] = fn(text);
+  // Patterns stop at sentence ends, so dots inside amounts ("Rs. 1,499.00") must not count as one.
+  const flat = text.replace(/(\d)[.,](?=\d)/g, '$1').replace(/\b(rs|inr|no|a\/c)\./gi, '$1');
+  for (const [k, fn] of Object.entries(SIGNS)) found[k] = fn(flat);
   const signs = [...HARD, ...SOFT].filter((k) => found[k]);
 
   let type = null;
   let best = 0;
   for (const [k, patterns] of Object.entries(TYPES)) {
-    const s = score(text, patterns);
+    const s = score(flat, patterns);
     if (s > best) [type, best] = [k, s];
   }
   if (!type && (found.otpAsk || found.screenShare || found.collect)) type = 'otp';
