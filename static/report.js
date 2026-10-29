@@ -19,6 +19,8 @@ const form = $('report-form');
 const story = $('story');
 let payments = [];
 let summary = ''; // set only after the verifier passed; used only while the person ticks the box
+let aiRun = 0; // bumps on every edit or clear, so a summary of older text is never shown
+let extractedFrom = { sms: null, story: null }; // re-extract only text that changed, keeping corrections
 
 $('nojs').hidden = true;
 form.hidden = false;
@@ -44,7 +46,8 @@ function askConsent() {
     const yes = h('button', { type: 'button', className: 'primary', textContent: T.consentYes });
     const no = h('button', { type: 'button', className: 'secondary', textContent: T.consentNo });
     const dlg = h('dialog', { className: 'consent' },
-      h('h2', { textContent: T.consentTitle }), h('p', { textContent: T.consentBody }), h('div', { className: 'actions' }, yes, no));
+      h('h2', { id: 'consent-title', textContent: T.consentTitle }), h('p', { textContent: T.consentBody }), h('div', { className: 'actions' }, yes, no));
+    dlg.setAttribute('aria-labelledby', 'consent-title');
     const done = (ok) => { dlg.close(); dlg.remove(); resolve(ok); };
     yes.addEventListener('click', () => done(true));
     no.addEventListener('click', () => done(false));
@@ -62,7 +65,8 @@ function setListening(on) {
 }
 
 function listen(local) {
-  rec = new SR();
+  const mine = new SR();
+  rec = mine;
   rec.lang = SPEECH_LANG;
   rec.continuous = true;
   rec.interimResults = true;
@@ -74,19 +78,30 @@ function listen(local) {
       if (e.results[i].isFinal) story.value = `${story.value.trimEnd()} ${said}`.trim();
       else interim += `${said} `;
     }
-    micStatus.textContent = interim.trim() || (local ? T.micLocal : T.micListening);
+    $('mic-interim').textContent = interim.trim(); // shown, not announced: a live region would read every word
   };
   rec.onerror = (e) => {
     micStatus.textContent = e.error === 'not-allowed' ? T.micDenied : e.error === 'network' ? T.micNetwork : T.micError;
   };
-  rec.onend = () => { rec = null; setListening(false); };
+  rec.onend = () => { if (rec === mine) { rec = null; setListening(false); $('mic-interim').textContent = ''; } };
   rec.start();
   setListening(true);
   micStatus.textContent = local ? T.micLocal : T.micListening;
 }
 
+let starting = false;
 async function toggleMic() {
   if (rec) { rec.stop(); return; }
+  if (starting) return; // a second tap while the first is still checking must not start a second recorder
+  starting = true;
+  try {
+    await startMic();
+  } finally {
+    starting = false;
+  }
+}
+
+async function startMic() {
   let status = await onDeviceStatus();
   if (status === 'downloadable' || status === 'downloading') {
     micStatus.textContent = T.micDownloading;
@@ -120,7 +135,12 @@ function renderPayments() {
       return h('div', { className: 'field' }, h('label', { htmlFor: id, textContent: T.doc.col[k] }), input);
     });
     const remove = h('button', { type: 'button', className: 'text-button', textContent: T.removePayment });
-    remove.addEventListener('click', () => { payments.splice(n, 1); renderPayments(); renderDoc(); });
+    remove.addEventListener('click', () => {
+      payments.splice(n, 1);
+      renderPayments();
+      renderDoc();
+      ($(`pay-${Math.min(n, payments.length - 1)}-when`) || $('add-payment')).focus();
+    });
     return h('fieldset', { className: 'payment' }, h('legend', { textContent: fill(T.paymentN, { n: n + 1 }) }), h('div', { className: 'grid-3' }, ...inputs), remove);
   }));
 }
@@ -129,13 +149,13 @@ const val = (id) => $(id).value.trim();
 
 function data() {
   const channel = $('channel');
-  const type = check(story.value).type;
+  const type = $('fraud-type');
   return {
     recipient: form.querySelector('input[name="recipient"]:checked')?.value || 'police',
     name: val('name'), mobile: val('mobile'), email: val('email'), address: val('address'), bank: val('bank'), ack: val('ack'),
     firstContact: val('first-contact') && new Date(`${val('first-contact')}T00:00`).toLocaleDateString(`${LANG}-IN`, { day: 'numeric', month: 'long', year: 'numeric' }),
     channel: channel.value ? channel.selectedOptions[0].textContent : '',
-    typeName: type ? T.types[type] : '',
+    typeName: type.value ? type.selectedOptions[0].textContent : '',
     story: story.value,
     summary: $('ai-ok').checked ? summary && $('ai-text').value : '',
     payments,
@@ -185,8 +205,12 @@ form.addEventListener('submit', (e) => {
     return;
   }
   $('form-status').textContent = '';
-  payments = extractPayments($('sms').value);
-  $('contacts').value = extractContacts(story.value, val('mobile')).join('\n');
+  if ($('sms').value !== extractedFrom.sms) payments = extractPayments($('sms').value);
+  if (story.value !== extractedFrom.story) {
+    $('contacts').value = extractContacts(story.value, val('mobile')).join('\n');
+    $('fraud-type').value = check(story.value).type || '';
+  }
+  extractedFrom = { sms: $('sms').value, story: story.value };
   renderPayments();
   renderDoc();
   $('preview').hidden = false;
@@ -194,8 +218,19 @@ form.addEventListener('submit', (e) => {
   $('review-title').focus({ preventScroll: true });
 });
 
+function dropSummary() {
+  aiRun++;
+  summary = '';
+  $('ai-ok').checked = false;
+  $('ai-result').hidden = true;
+}
+// A summary describes the text it was made from; editing that text drops it.
+story.addEventListener('input', dropSummary);
+$('sms').addEventListener('input', dropSummary);
+
 // Any later edit anywhere updates the letter.
 form.addEventListener('input', () => { if (!$('preview').hidden) renderDoc(); });
+$('fraud-type').addEventListener('change', renderDoc);
 $('contacts').addEventListener('input', renderDoc);
 $('add-payment').addEventListener('click', () => {
   payments.push(Object.fromEntries(COLS.map((k) => [k, ''])));
@@ -219,6 +254,9 @@ async function aiReady() {
 
 async function runAi() {
   const status = $('ai-status');
+  const run = ++aiRun;
+  const text = story.value;
+  const source = [text, $('sms').value, ...['name', 'mobile', 'email', 'address', 'bank', 'ack', 'first-contact'].map(val)].join('\n');
   $('ai-run').disabled = true;
   status.textContent = T.aiWorking;
   try {
@@ -226,9 +264,9 @@ async function runAi() {
       ...AI_OPTS,
       monitor: (m) => m.addEventListener('downloadprogress', (e) => { status.textContent = fill(T.aiDownloading, { p: Math.round(e.loaded * 100) }); }),
     });
-    const out = (await s.summarize(story.value)).trim();
+    const out = (await s.summarize(text)).trim();
     s.destroy?.();
-    const source = [story.value, $('sms').value, ...['name', 'mobile', 'email', 'address', 'bank', 'ack', 'first-contact'].map(val)].join('\n');
+    if (run !== aiRun) return; // the text changed or the page was cleared while the model was writing
     if (!out || unsupportedDetails(out, source).length) {
       summary = '';
       $('ai-result').hidden = true;
@@ -241,7 +279,7 @@ async function runAi() {
       status.textContent = '';
     }
   } catch {
-    status.textContent = T.aiFailed;
+    if (run === aiRun) status.textContent = T.aiFailed;
   } finally {
     $('ai-run').disabled = false;
     renderDoc();
@@ -275,7 +313,19 @@ $('share').addEventListener('click', async () => {
       if (err.name === 'AbortError') return;
     }
   }
-  location.href = `mailto:?subject=${encodeURIComponent(r.subject)}&body=${encodeURIComponent(text)}`;
+  // Long mailto links fail silently in some mail apps, so a long letter is copied and pasted instead.
+  if (text.length > 1800) {
+    try {
+      await navigator.clipboard.writeText(text);
+      docStatus.textContent = T.copied;
+    } catch {
+      docStatus.textContent = T.copyFail;
+      return;
+    }
+    location.href = `mailto:?subject=${encodeURIComponent(r.subject)}`;
+  } else {
+    location.href = `mailto:?subject=${encodeURIComponent(r.subject)}&body=${encodeURIComponent(text)}`;
+  }
 });
 
 $('next-toggle').addEventListener('click', () => {
@@ -285,8 +335,14 @@ $('next-toggle').addEventListener('click', () => {
   else $('next').hidden = true;
 });
 
+const micHint = micStatus.textContent;
 $('clear').addEventListener('click', () => {
   rec?.abort();
+  aiRun++;
+  extractedFrom = { sms: null, story: null };
+  micStatus.textContent = micHint;
+  for (const id of ['mic-interim', 'ai-status', 'doc-status']) $(id).textContent = '';
+  $('fraud-type').value = '';
   form.reset();
   for (const id of ['contacts', 'ai-text']) $(id).value = '';
   payments = [];

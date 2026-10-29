@@ -154,8 +154,8 @@ const SMS = 'Dear Customer, your A/c XX4821 is debited by Rs.12,000.00 on 28-Oct
   + 'Rs.1,499.50 debited from a/c **4821 on 28-Oct-26 to VPA refund221@ybl (UPI Ref No 773829104857). -HDFC Bank';
 const fakes = ({ onDevice }) => {
   class FakeRecognition {
-    static async available() { return 'available'; }
-    start() { window.__started = { local: !!this.processLocally }; setTimeout(() => this.onresult?.({ resultIndex: 0, results: [Object.assign([{ transcript: 'He called from 9876543210 and said my KYC expired.' }], { isFinal: true })] }), 50); }
+    static async available() { await new Promise((r) => setTimeout(r, window.__slow || 0)); return 'available'; }
+    start() { window.__instances = (window.__instances || 0) + 1; window.__started = { local: !!this.processLocally }; setTimeout(() => this.onresult?.({ resultIndex: 0, results: [Object.assign([{ transcript: 'He called from 9876543210 and said my KYC expired.' }], { isFinal: true })] }), 50); }
     stop() { this.onend?.(); }
     abort() { this.onend?.(); }
   }
@@ -177,9 +177,12 @@ await rp.waitForURL(`${BASE}/report/`);
 check(await rp.locator('#report-form').isVisible() && await rp.locator('#nojs').isHidden(), 'Help links to the report maker, which loads');
 await rp.click('.report-form > button.primary');
 check((await rp.innerText('#form-status')).trim() !== '', 'report: an empty story explains what to do');
+await rp.evaluate('window.__slow = 300');
+await rp.click('#mic');
 await rp.click('#mic');
 await until(async () => (await rp.inputValue('#story')).includes('9876543210'));
 check(await rp.evaluate('window.__started.local') && !(await rp.locator('dialog').count()), 'mic: on-device speech is used without asking');
+check((await rp.evaluate('window.__instances')) === 1, 'mic: a double tap starts only one recorder');
 await rp.click('#mic');
 await rp.fill('#sms', SMS);
 await rp.fill('#name', 'Sunita Deshpande');
@@ -194,10 +197,20 @@ check(doc.includes('Rs 13,499.50') && doc.includes('482910384756') && doc.includ
 check(doc.includes('KYC update or account block'), 'report: fraud type named from the story');
 await rp.fill('#pay-0-amount', '10,000.00');
 check((await rp.innerText('#doc')).includes('Rs 11,499.50'), 'report: editing an amount updates the total');
+await rp.click('.report-form > button.primary');
+check((await rp.inputValue('#pay-0-amount')) === '10,000.00', 'report: making the report again keeps corrections');
+check((await rp.inputValue('#fraud-type')) === 'kyc', 'report: fraud type is pre-filled from the story');
+await rp.selectOption('#fraud-type', 'otp');
+check((await rp.innerText('#doc')).includes('OTP or screen-sharing request'), 'report: fraud type can be changed');
 await rp.fill('#ack', '31910280012345');
 check((await rp.innerText('#doc')).includes('31910280012345'), 'report: adding the 1930 number updates the letter');
 if (SHOTS) await rp.screenshot({ path: `${SHOTS}/report-review.png` });
 
+await rp.emulateMedia({ media: 'print' });
+const pdf = (await rp.pdf()).toString('latin1');
+await rp.emulateMedia({ media: 'screen' });
+const pages = (pdf.match(/\/Type\s*\/Page[^s]/g) || []).length;
+check(pages >= 1 && pages <= 3, `print: only the letter prints (${pages} pages)`);
 check(await rp.locator('#ai').isVisible(), 'AI: summary button shown where on-device AI exists');
 await rp.evaluate("window.__summary = 'They took Rs 99,999 after calling from 9876543210.'");
 await rp.click('#ai-run');
@@ -230,6 +243,7 @@ await cp.goto(`${BASE}/hi/report/`);
 await cp.locator('#mic').waitFor();
 await cp.click('#mic');
 check(await cp.locator('dialog.consent').isVisible(), 'mic: asks before sending a voice off the phone');
+check((await cp.getAttribute('dialog.consent', 'aria-labelledby')) === 'consent-title', 'mic: the dialog has an accessible name');
 check((await cp.textContent('dialog.consent h2')) === 'आपकी आवाज़ इस फ़ोन से बाहर जाएगी', 'mic: the warning is in the page language');
 await cp.locator('dialog.consent .secondary').click();
 check(!(await cp.evaluate('window.__started')) && (await cp.inputValue('#story')) === '', 'mic: "Type instead" never starts recording');

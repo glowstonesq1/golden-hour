@@ -59,6 +59,7 @@ const field = (id, label, type = 'text', extra = '') =>
 
 function reportPage(s, p) {
   const r = s.report;
+  const types = Object.entries(s.check.types).filter(([k]) => k !== 'unknown').map(([k, v]) => `<option value="${k}">${esc(v.name)}</option>`).join('');
   const channels = Object.entries(r.channels).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join('');
   const recipients = Object.entries(r.recipients)
     .map(([k, v], i) => `<label class="choice"><input type="radio" name="recipient" value="${k}"${i ? '' : ' checked'}> <span>${esc(v)}</span></label>`).join('');
@@ -73,7 +74,6 @@ function reportPage(s, p) {
     ...pick(['mic', 'micStop', 'micListening', 'micLocal', 'micDownloading', 'micDenied', 'micNetwork', 'micError',
       'consentTitle', 'consentBody', 'consentYes', 'consentNo', 'needStory', 'noPayments', 'removePayment', 'paymentN',
       'aiWorking', 'aiDownloading', 'aiRejected', 'aiFailed', 'copied', 'copyFail', 'cleared', 'doc']),
-    types: Object.fromEntries(Object.entries(s.check.types).map(([k, v]) => [k, v.name])),
   };
   return `${callButton(s)}
     <h1>${esc(r.title)}</h1>
@@ -89,6 +89,7 @@ function reportPage(s, p) {
           <button type="button" id="mic" class="mic" hidden aria-pressed="false">${icon('mic')}<span id="mic-label">${esc(r.mic)}</span></button>
           <p id="mic-status" class="hint" role="status" aria-live="polite">${esc(r.micKeyboard)}</p>
         </div>
+        <p id="mic-interim" class="hint interim"></p>
       </fieldset>
       <fieldset>
         <legend>${esc(r.smsTitle)}</legend>
@@ -122,6 +123,7 @@ function reportPage(s, p) {
       <p class="hint">${esc(r.checkHint)}</p>
       <div id="payments"></div>
       <button type="button" id="add-payment" class="secondary">${esc(r.addPayment)}</button>
+      <div class="field"><label for="fraud-type">${esc(r.doc.fraudType)}</label><select id="fraud-type"><option value="">${esc(r.channelPick)}</option>${types}</select></div>
       <div class="field"><label for="contacts">${esc(r.contactsLabel)}</label><textarea id="contacts" rows="4" spellcheck="false"></textarea></div>
       <div id="ai" class="ai" hidden>
         <button type="button" id="ai-run" class="secondary">${esc(r.aiButton)}</button>

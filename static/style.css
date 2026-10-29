@@ -210,6 +210,7 @@ button[hidden], [hidden] { display: none !important; }
 
 .mic-row { display: flex; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin-top: 0.75rem; }
 .mic-row .hint { margin: 0; flex: 1 1 14rem; }
+.interim { min-height: 1.5em; font-style: italic; }
 .mic { background: var(--accent-soft); color: var(--accent); border: 1.5px solid var(--accent); position: relative; }
 .mic.live { background: var(--accent); color: var(--accent-ink); }
 .mic.live::after { content: ""; position: absolute; inset: -4px; border-radius: 15px; border: 2px solid var(--accent); animation: listen 1.6s ease-out infinite; }
@@ -286,9 +287,8 @@ footer { max-width: 72rem; margin-top: 2.5rem; padding-top: 1.25rem; padding-bot
 /* Print: only the letter */
 @media print {
   @page { margin: 18mm; }
-  body { background: #fff; }
-  body * { visibility: hidden; }
-  #doc, #doc * { visibility: visible; }
-  #doc { position: absolute; inset: 0 auto auto 0; width: 100%; margin: 0; border: 0; box-shadow: none; padding: 0; }
-  .page-home::before { display: none; }
+  body { background: #fff; display: block; }
+  body > :not(main), main > :not(#preview), #preview > :not(#doc) { display: none !important; }
+  main, #preview { max-width: none; margin: 0; padding: 0; border: 0; }
+  #doc { margin: 0; border: 0; box-shadow: none; padding: 0; }
 }

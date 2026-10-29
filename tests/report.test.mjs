@@ -12,10 +12,31 @@ const SMS = [
   'INR 500.00 credited to A/c no. XX4821 on 28-Oct-26 by UPI Ref no 112233445566',
 ].join('\n\n');
 
-test('messages split on blank lines, or on lines when there are none', () => {
+test('messages split on blank lines; without them, a new message starts only at a line with an amount', () => {
   assert.equal(splitMessages(SMS).length, 3);
-  assert.deepEqual(splitMessages('a\nb\n\n'), ['a', 'b']);
+  assert.equal(splitMessages(SMS.replace(/\n\n/g, '\n')).length, 3);
+  assert.deepEqual(splitMessages('a\nb\n\n'), ['a b']);
   assert.deepEqual(splitMessages(''), []);
+});
+
+test('multi-line alerts keep their UTR, date and payee together', () => {
+  const [p] = extractPayments('Sent Rs.500.00\nFrom HDFC Bank A/C *4821\nTo RAMESH KUMAR\nOn 28/10/26\nRef 430212345678\nNot You? Call 18002586161');
+  assert.deepEqual(p, { when: '28/10/26', amount: '500.00', mode: '', utr: '430212345678', to: 'RAMESH KUMAR', from: 'XX4821' });
+});
+
+test('a UTR is read only after a reference label, never an account or helpline number', () => {
+  const leak = extractPayments('Rs 900 debited from account 123456789012 to x@ybl');
+  assert.ok(!JSON.stringify(leak).includes('123456789012'), 'the full account number appears nowhere');
+  assert.equal(extractPayments('Rs.250 paid from a/c 918765432101. UPI Ref: 430212345678')[0].utr, '430212345678');
+  assert.equal(extractPayments('Rs 500 debited. Call 919951860002 if not you. UPI Ref 430212345678')[0].utr, '430212345678');
+});
+
+test('the amount lost is the debit, never the balance; bare and Dr. debits count', () => {
+  assert.equal(extractPayments('Your a/c XX4821 debited for 5000.00 on 28-10-26. Avl Bal Rs 12,000.00')[0].amount, '5000.00');
+  assert.equal(extractPayments('A/C X4821 debited by 5000.0 trf to RAMESH Refno 430212345678')[0].to, 'RAMESH');
+  assert.equal(extractPayments('Rs.5000.00 Dr. from A/C XXXXXX4821 and Cr. to fraud@ybl. Ref:430212345678')[0].to, 'fraud@ybl');
+  assert.deepEqual(extractPayments('Users 12000 debited'), [], '"Users" is not "rs"');
+  assert.equal(extractPayments('Card XX1111 spent Rs 999 at SHOP on 2026-10-28:14:22:11')[0].when, '2026-10-28');
 });
 
 test('payments: debits only, every value copied word for word, own account masked', () => {
@@ -42,14 +63,23 @@ test('contacts: scammer numbers, UPI IDs, emails and links, not the person\'s ow
   assert.deepEqual(extractContacts(story, '9123456780'),
     ['+91 98765 43210', '9876500001', 'refund221@ybl', 'help@sbi-care.in', 'https://sbi-kyc-update.com/x']);
   assert.deepEqual(extractContacts('Update KYC:https://bit.ly/abc now'), ['https://bit.ly/abc']);
+  assert.deepEqual(extractContacts('pay to refund221@ybl.Then he left. my upi 9123456780@ybl', '9123456780'), ['refund221@ybl']);
 });
 
 test('AI summary verifier rejects any number, ID or link the person never gave', () => {
   const source = `${SMS}\nHe called from 9876543210 on 27 October.`;
   assert.deepEqual(unsupportedDetails('They took Rs 12000 and Rs 1,499.50 via refund221@ybl after calling from 9876543210 on 27 October.', source), []);
   assert.deepEqual(unsupportedDetails('They took Rs 15,000.', source), ['15000']);
-  assert.deepEqual(unsupportedDetails('Paid to helpdesk@paytm via https://evil.example/x', source), ['helpdesk@paytm', 'https://evil.example/x']);
+  assert.deepEqual(unsupportedDetails('Paid to helpdesk@paytm via https://evil.example/x', source), ['helpdesk@paytm', 'evil.example/x']);
   assert.deepEqual(unsupportedDetails('No numbers here.', source), []);
+  // Whole tokens, not substrings: none of these may slip through.
+  const src2 = 'Rs 10,000 sent, UTR 430212345678, to fraud@ybl.com, link sbi-kyc.com/x, Rs 50';
+  assert.deepEqual(unsupportedDetails('Rs 1,000 lost', src2), ['1000']);
+  assert.deepEqual(unsupportedDetails('ref 0212345678', src2), ['212345678']);
+  assert.deepEqual(unsupportedDetails('paid fraud@ybl', src2), ['fraud@ybl']);
+  assert.deepEqual(unsupportedDetails('Rs 50 lakh', src2), ['lakh']);
+  assert.deepEqual(unsupportedDetails('visit evil-kyc.com', src2), ['evil-kyc.com']);
+  assert.deepEqual(unsupportedDetails('Rs 10000 sent to fraud@ybl.com via sbi-kyc.com/x, UTR 430212345678', src2), []);
 });
 
 test('total is computed in code from the payment amounts', () => {
