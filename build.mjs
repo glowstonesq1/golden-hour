@@ -20,23 +20,29 @@ export const CSP_META =
 export const esc = (s) =>
   String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
-const ext = (href, text) => `<a href="${esc(href)}" rel="noopener noreferrer" target="_blank">${esc(text)}</a>`;
+export function ext(href, text) {
+  if (!/^https:\/\/[^/]/.test(href)) throw new Error(`External links must be https: ${href}`);
+  return `<a href="${esc(href)}" rel="noopener noreferrer" target="_blank">${esc(text)}</a>`;
+}
 
+const mtNote = (s) => (s.mtNote ? `\n    <p class="mt">${esc(s.mtNote)}</p>` : '');
+
+// The machine-translation notice sits below the button so nothing comes before 1930.
 const callButton = (s) => `
     <a class="call" href="tel:1930">
       <span class="call-label">${esc(s.call.label)}</span>
       <span class="call-sub">${esc(s.call.sub)}</span>
-    </a>`;
+    </a>${mtNote(s)}`;
 
 function body(s, lang, page) {
   const p = LANGS[lang];
   if (page === '') {
     return `${callButton(s)}
-    <p class="lead">${esc(s.home.lead)}</p>
-    <nav class="doors">
+    <h1 class="lead">${esc(s.home.lead)}</h1>
+    <div class="doors">
       <a class="door" href="${p}help/"><span class="door-title">${esc(s.home.helpTitle)}</span><span class="door-sub">${esc(s.home.helpSub)}</span></a>
       <a class="door" href="${p}check/"><span class="door-title">${esc(s.home.checkTitle)}</span><span class="door-sub">${esc(s.home.checkSub)}</span></a>
-    </nav>`;
+    </div>`;
   }
   if (page === 'help/') {
     const steps = s.help.steps
@@ -49,7 +55,7 @@ function body(s, lang, page) {
     return `${callButton(s)}
     <h1>${esc(s.help.title)}</h1>
     <p class="lead">${esc(s.help.lead)}</p>
-    <ol class="steps">${steps}
+    <ol class="steps" role="list">${steps}
     </ol>
     <p class="portal">${ext(s.help.portalLink, 'cybercrime.gov.in')}</p>
     <aside class="note">
@@ -71,10 +77,10 @@ function body(s, lang, page) {
       <a class="secondary" href="${p}help/">${esc(s.check.paid)}</a>
     </div>
     <p id="status" class="status" role="status" aria-live="polite"></p>
-    <div id="strings" hidden data-copied="${esc(s.check.copied)}" data-empty="${esc(s.check.empty)}" data-intro="${esc(s.check.shareIntro)}"></div>`;
+    <div id="strings" hidden data-copied="${esc(s.check.copied)}" data-copy-fail="${esc(s.check.copyFail)}" data-empty="${esc(s.check.empty)}" data-intro="${esc(s.check.shareIntro)}"></div>`;
   }
   const doc = page === 'terms/' ? s.terms : s.privacy;
-  return `
+  return `${mtNote(s)}
     <h1>${esc(doc.title)}</h1>
     ${doc.body.map((x) => `<p>${esc(x)}</p>`).join('\n    ')}`;
 }
@@ -113,7 +119,7 @@ export function renderPage(strings, lang, page) {
     <a class="brand" href="${p}">${esc(s.siteName)}</a>
     <nav class="langs" aria-label="${esc(s.langLabel)}">${langLinks}</nav>
   </header>
-  <main>${s.mtNote ? `\n    <p class="mt">${esc(s.mtNote)}</p>` : ''}${body(s, lang, page)}
+  <main>${body(s, lang, page)}
   </main>
   <footer>
     <p>${esc(s.footer.disclaimer)}</p>
@@ -195,7 +201,8 @@ export async function build(outDir = join(ROOT, 'dist')) {
   const precache = files.map((f) => f.replace(/index\.html$/, ''));
   const sw = (await readFile(join(ROOT, 'static/sw.js'), 'utf8'))
     .replace('__VERSION__', hash.digest('hex').slice(0, 12))
-    .replace('__PRECACHE__', JSON.stringify(precache));
+    .replace('__PRECACHE__', JSON.stringify(precache))
+    .replace('__PREFIXES__', JSON.stringify(Object.values(LANGS)));
   await writeFile(join(outDir, 'sw.js'), sw);
   return { outDir, files: [...files, '/sw.js'] };
 }

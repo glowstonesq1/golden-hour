@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFile, readdir, stat, mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { build, esc, LANGS, PAGES, CSP_META } from '../build.mjs';
+import { build, esc, ext, LANGS, PAGES, CSP_META } from '../build.mjs';
 
 let out;
 const pages = [];
@@ -99,10 +99,28 @@ test('Vercel headers: strict CSP and no network destinations other than self', a
   assert.equal(headers['Referrer-Policy'], 'no-referrer');
 });
 
-test('first load stays under 150 KB', async () => {
-  let total = 0;
-  for (const f of ['index.html', 'style.css', 'app.js']) total += (await stat(join(out, f))).size;
-  assert.ok(total < 150 * 1024, `first load is ${total} bytes`);
+test('first visit, including the whole offline precache, stays under 150 KB', async () => {
+  const sw = await read('sw.js');
+  const precache = JSON.parse(sw.match(/const PRECACHE = (\[.*\]);/)[1]);
+  let total = (await stat(join(out, 'sw.js'))).size;
+  for (const f of precache) total += (await stat(join(out, f.endsWith('/') ? `${f}index.html` : f))).size;
+  assert.ok(total < 150 * 1024, `first visit is ${total} bytes`);
+});
+
+test('every page has exactly one h1, and the 1930 button comes before any notice', async () => {
+  for (const { path } of pages) {
+    const html = await read(path);
+    assert.equal((html.match(/<h1[\s>]/g) || []).length, 1, path);
+    const mt = html.indexOf('class="mt"');
+    const call = html.indexOf('tel:1930');
+    if (mt > 0 && call > 0) assert.ok(call < mt, `${path}: notice appears before the 1930 button`);
+  }
+});
+
+test('external links must be https', () => {
+  assert.throws(() => ext('javascript:alert(1)', 'x'));
+  assert.throws(() => ext('http://example.com', 'x'));
+  assert.match(ext('https://cybercrime.gov.in/', 'x'), /href="https:\/\/cybercrime\.gov\.in\/"/);
 });
 
 test('client code never builds HTML from strings or evaluates code', async () => {

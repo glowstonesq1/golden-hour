@@ -10,15 +10,14 @@ const ask = document.getElementById('ask');
 const status = document.getElementById('status');
 const strings = document.getElementById('strings')?.dataset;
 
-async function loadShared() {
-  const params = new URLSearchParams(location.search);
-  if (!params.has('shared')) return;
-  history.replaceState(null, '', location.pathname);
-  if (!('caches' in window)) return;
+// A shared message is kept only until the next page load. Every page deletes it;
+// the Check page shows it first when it was opened by a share.
+async function takeShared() {
+  if (!('caches' in window)) return '';
   const cache = await caches.open('gh-share');
   const hit = await cache.match('/__shared__');
   await cache.delete('/__shared__');
-  if (hit) msg.value = await hit.text();
+  return hit ? hit.text() : '';
 }
 
 async function askFamily() {
@@ -42,11 +41,20 @@ async function askFamily() {
     status.textContent = strings.copied;
   } catch {
     msg.select();
+    status.textContent = strings.copyFail;
   }
 }
+
+const opened = new URLSearchParams(location.search).has('shared');
+if (opened) history.replaceState(null, '', location.pathname);
+
+takeShared()
+  .then((text) => {
+    if (opened && text && msg) msg.value = text;
+  })
+  .catch(() => {});
 
 if (msg && ask && status && strings) {
   ask.hidden = false;
   ask.addEventListener('click', askFamily);
-  loadShared().catch(() => {});
 }

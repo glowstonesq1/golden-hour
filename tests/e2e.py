@@ -44,10 +44,17 @@ with sync_playwright() as p:
         page.screenshot(path=f"{SHOTS}/home-en.png", full_page=True)
 
     ctx.set_offline(True)
-    for path in ["/", "/help/", "/check/", "/hi/", "/mr/help/"]:
+    for path in ["/", "/help/", "/check/", "/hi/", "/mr/help/", "/help/?utm_source=whatsapp", "/help"]:
         page.goto(f"{BASE}{path}")
-        check(page.locator('a[href="tel:1930"]').count() >= 1 or path == "/terms/", f"offline: {path} opens with the 1930 button")
+        check(page.locator('a[href="tel:1930"]').count() >= 1, f"offline: {path} opens with the 1930 button")
     ctx.set_offline(False)
+
+    # A leftover share is deleted by the next page load, whichever page it is.
+    page.goto(f"{BASE}/")
+    page.evaluate("caches.open('gh-share').then(c => c.put('/__shared__', new Response('left over')))")
+    page.goto(f"{BASE}/help/")
+    page.wait_for_function("caches.open('gh-share').then(c => c.match('/__shared__')).then(r => !r)")
+    check(True, "leftover share deleted on the next page load")
 
     # 3. Share target: a POST to /share-target/ is answered by the worker, never the server.
     page.goto(f"{BASE}/hi/")
@@ -69,6 +76,18 @@ with sync_playwright() as p:
     check(page.locator("#ask").is_visible(), "JS: 'Ask my family' button shown")
     if SHOTS:
         page.screenshot(path=f"{SHOTS}/check-hi-shared.png", full_page=True)
+
+    # The English app (root scope) shares into the English Check page.
+    page.goto(f"{BASE}/")
+    page.evaluate("""() => {
+        const f = document.createElement('form');
+        f.method = 'POST'; f.action = '/share-target/'; f.enctype = 'multipart/form-data';
+        const i = document.createElement('input'); i.type = 'hidden'; i.name = 'text'; i.value = 'Parcel held at customs, pay Rs 25'; f.append(i);
+        document.body.append(f); f.submit();
+    }""")
+    page.wait_for_url(f"{BASE}/check/**")
+    page.wait_for_function("document.getElementById('msg').value.length > 0")
+    check("Parcel held" in page.input_value("#msg"), "share: English share lands in the English Check box")
 
     # 4. Ask my family with an empty box gives a message, not a silent failure.
     page.goto(f"{BASE}/check/")

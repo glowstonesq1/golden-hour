@@ -15,7 +15,6 @@
     "label": "Call 1930 now",
     "sub": "Cyber crime helpline. Free, 24 hours."
   },
-  "nav": { "home": "Home" },
   "footer": {
     "disclaimer": "Not a government service. Not legal advice. Nothing you type here leaves your phone.",
     "terms": "Terms",
@@ -72,7 +71,8 @@
     "paid": "I already paid",
     "copied": "Copied. Paste it to someone you trust.",
     "empty": "Paste or share a message first.",
-    "shareIntro": "Is this message real? Please take a look before I reply:"
+    "shareIntro": "Is this message real? Please take a look before I reply:",
+    "copyFail": "The message is selected. Copy it and send it to someone you trust."
   },
   "terms": {
     "title": "Terms",
@@ -88,8 +88,9 @@
     "title": "Privacy",
     "body": [
       "Golden Hour has no server that receives what you type, paste or share. Everything is processed on your phone.",
-      "The app keeps no history. A message you share to it is held only until the Check page opens, then deleted.",
+      "The app keeps no history. A message you share to it is kept on your phone only until the next page opens, then deleted.",
       "There are no accounts, cookies, ads or analytics.",
+      "Shares are handled on your phone by the installed app. If the app's stored files were cleared, open the app once before sharing; otherwise a share can reach our web host, which rejects it.",
       "Links to cybercrime.gov.in, sancharsaathi.gov.in and your phone dialer open outside the app."
     ]
   }

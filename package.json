@@ -9,6 +9,7 @@
   "scripts": {
     "build": "node build.mjs",
     "test": "node --test",
-    "serve": "node build.mjs && node tests/serve.mjs dist 8080"
+    "serve": "node build.mjs && node tests/serve.mjs dist 8080",
+    "e2e": "python3 tests/e2e.py http://127.0.0.1:8080"
   }
 }
