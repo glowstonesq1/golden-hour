@@ -18,12 +18,16 @@ let check = null; // loaded only on the Check page
 // which also clears it; the Check page shows it when it was opened by a share. If the browser stopped
 // the worker in between, the share is simply gone and the person shares or pastes again.
 function takeShared() {
+  const none = { text: '', files: [] };
   const sw = navigator.serviceWorker?.controller;
-  if (!sw) return Promise.resolve('');
+  if (!sw) return Promise.resolve(none);
   return new Promise((resolve) => {
     const channel = new MessageChannel();
-    const timer = setTimeout(() => resolve(''), 3000);
-    channel.port1.onmessage = (e) => { clearTimeout(timer); resolve(typeof e.data?.text === 'string' ? e.data.text : ''); };
+    const timer = setTimeout(() => resolve(none), 3000);
+    channel.port1.onmessage = (e) => {
+      clearTimeout(timer);
+      resolve({ text: typeof e.data?.text === 'string' ? e.data.text : '', files: Array.isArray(e.data?.files) ? e.data.files : [] });
+    };
     sw.postMessage({ type: 'take-share' }, [channel.port2]);
   });
 }
@@ -89,10 +93,15 @@ async function askFamily() {
 const opened = new URLSearchParams(location.search).has('shared');
 if (opened) history.replaceState(null, '', location.pathname);
 
-const shared = takeShared().catch(() => '');
+const shared = takeShared().catch(() => ({ text: '', files: [] }));
 
 // The journey script loads only on its own page; if it fails, the page keeps its no-JavaScript message.
-if ($('report-form')) import('/report.js').catch(() => {});
+// Files shared to the app (screenshots, a chat export) are handed to its proof step.
+if ($('report-form')) {
+  import('/report.js')
+    .then(async (journey) => { if (opened) journey.receiveShare((await shared).files); })
+    .catch(() => {});
+}
 
 // Home: the "I lost money" door names the next step of a saved case.
 const helpSub = $('help-sub');
@@ -152,7 +161,7 @@ if (msg && ask && run && status && strings && labels) {
       check = rules.check;
       run.hidden = false;
       run.addEventListener('click', runCheck);
-      const text = await shared;
+      const { text } = await shared;
       if (opened && text && !msg.value) {
         msg.value = text;
         show(check(text));
@@ -161,7 +170,7 @@ if (msg && ask && run && status && strings && labels) {
     })
     .catch(async () => {
       // Rules failed to load: still show a shared message so the user can ask family.
-      const text = await shared;
+      const { text } = await shared;
       if (opened && text && !msg.value) msg.value = text;
     });
 }

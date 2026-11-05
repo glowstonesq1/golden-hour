@@ -2,8 +2,9 @@
 // Loaded by app.js only on the journey page. Builds DOM with textContent only, never from HTML strings.
 // Only case-core's sanitized fields ever reach localStorage; names, numbers and the story stay in memory.
 import { check } from './rules.js';
-import { extractPayments, extractContacts, buildReport, reportText, totalLost } from './report-core.js';
+import { extractContacts, buildReport, reportText, amountValue } from './report-core.js';
 import { CASE_KEY, parseCase, sanitize, markDone, nextStep, formatDate, formatAmount, toIso } from './case-core.js';
+import { findCards, zipTexts, parseWhatsApp, canonicalBank } from './proof-core.js';
 
 const $ = (id) => document.getElementById(id);
 const T = JSON.parse($('report-strings').dataset.t);
@@ -19,8 +20,9 @@ const val = (id) => $(id).value.trim();
 
 const form = $('report-form');
 const story = $('story');
-let payments = []; // this visit only; the case keeps just the total and the UTRs
-let extractedFrom = { sms: null, story: null }; // re-extract only text that changed, keeping corrections
+let cards = []; // this visit only, in memory; the case keeps just what the person marked Correct
+let base = {}; // the case as it was before these cards, so marking Wrong after Correct puts it back
+let extractedFrom = { story: null }; // re-extract only text that changed, keeping corrections
 
 for (const el of document.querySelectorAll('.js-only')) el.hidden = false;
 $('nojs').hidden = true;
@@ -59,6 +61,7 @@ function renderCase() {
   }
   $('ack').value = kase.ack || $('ack').value;
   if (kase.bank && !val('bank')) $('bank').value = kase.bank;
+  $('total-line').textContent = kase.amount ? fill(T.totalLine, { amount: formatAmount(kase.amount) }) : '';
   renderReady();
 }
 
@@ -67,7 +70,8 @@ for (const btn of document.querySelectorAll('[data-done]')) {
 }
 
 // ---------- Step 1: what to have ready for the 1930 call ----------
-const scammerIds = () => [...new Set(payments.map((p) => p.to).filter((x) => /@|^\+?\d[\d\s-]{9,}$/.test(x)))];
+// Who was paid and the scammer's numbers, from cards marked Correct: shown and used in the letter, never stored.
+const scammerIds = () => [...new Set(cards.filter((c) => c.state === 'ok' && (c.kind === 'scammer' || (c.kind === 'payee' && /@/.test(c.value)))).map((c) => c.value))];
 
 function readyItems() {
   return [
@@ -112,61 +116,137 @@ $('ack-save').addEventListener('click', () => {
   $('ack-status').textContent = T.ackSaved;
 });
 
-// ---------- Step 2: proof ----------
-const COLS = ['when', 'amount', 'mode', 'utr', 'to', 'from'];
+// ---------- Step 2: proof: files or pasted text -> cards -> case ----------
+const ocrStatus = $('ocr-status');
 
-function renderPayments() {
-  const box = $('payments');
-  if (!payments.length) {
-    box.replaceChildren(h('p', { className: 'empty', textContent: T.noPayments }));
-    return;
-  }
-  box.replaceChildren(...payments.map((p, n) => {
-    const inputs = COLS.map((k) => {
-      const id = `pay-${n}-${k}`;
-      const input = h('input', { id, value: p[k], type: 'text', spellcheck: false });
-      if (k === 'amount') input.inputMode = 'decimal';
-      input.addEventListener('input', () => { p[k] = input.value; renderReady(); if (!$('preview').hidden) renderDoc(); });
-      return h('div', { className: 'field' }, h('label', { htmlFor: id, textContent: T.doc.col[k] }), input);
-    });
-    const remove = h('button', { type: 'button', className: 'text-button', textContent: T.removePayment });
-    remove.addEventListener('click', () => {
-      payments.splice(n, 1);
-      renderPayments();
-      if (!$('preview').hidden) renderDoc();
-      ($(`pay-${Math.min(n, payments.length - 1)}-when`) || $('add-payment')).focus();
-    });
-    return h('fieldset', { className: 'payment' }, h('legend', { textContent: fill(T.paymentN, { n: n + 1 }) }), h('div', { className: 'grid-3' }, ...inputs), remove);
-  }));
+// A WhatsApp export becomes plain lines; anything else passes through unchanged.
+function chatText(text) {
+  const msgs = parseWhatsApp(text);
+  return msgs.length ? msgs.map((m) => `${m.sender}: ${m.text}`).join('\n\n') : text;
 }
 
+async function readFiles(files) {
+  const texts = [];
+  const images = [];
+  for (const f of [...files].slice(0, 20)) {
+    if (/\.zip$/i.test(f.name) || /zip/.test(f.type)) {
+      try {
+        for (const t of await zipTexts(await f.arrayBuffer())) texts.push(chatText(t.text));
+      } catch {
+        ocrStatus.textContent = T.zipFailed;
+      }
+    } else if (/\.txt$/i.test(f.name) || f.type.startsWith('text/')) texts.push(chatText(await f.text()));
+    else if (f.type.startsWith('image/') && f.size <= 15 * 1024 * 1024) images.push(f); // larger is not a screenshot
+  }
+  if (images.length) {
+    ocrStatus.textContent = T.ocrLoading;
+    let ocr;
+    try {
+      ocr = await import('/ocr.js');
+      for (const [n, img] of images.entries()) {
+        ocrStatus.textContent = fill(T.ocrReading, { n: n + 1, total: images.length });
+        // Lines inside one message are joined; blank lines between messages are kept.
+        texts.push((await ocr.readImage(img, LANG)).replace(/([^\n])\n(?!\n)/g, '$1 '));
+      }
+      ocrStatus.textContent = '';
+    } catch (err) {
+      ocrStatus.textContent = err?.message === 'slow' ? T.ocrSlow : T.ocrFailed;
+      $('paste').open = true;
+    } finally {
+      ocr?.stopReading(); // frees the engine and the images it held
+    }
+  }
+  showCards(texts);
+}
+
+function showCards(texts) {
+  base = sanitize(kase);
+  cards = findCards(texts, val('mobile'));
+  if (!cards.length && !ocrStatus.textContent) ocrStatus.textContent = T.noneFound;
+  if (!cards.length) $('paste').open = true;
+  renderCards();
+  $('review').hidden = !cards.length;
+  if (cards.length) $('review-title').focus();
+}
+
+// The case gets only what was marked Correct: total of the correct amounts (computed here), their UTRs,
+// the earliest correct date, and a bank from the known list. Marking Wrong takes it out again.
+function syncCase() {
+  const ok = (kind) => cards.filter((c) => c.kind === kind && c.state === 'ok').map((c) => c.value);
+  const shown = new Set(cards.filter((c) => c.kind === 'utr').map((c) => c.value.toUpperCase()));
+  const amounts = ok('amount');
+  const dates = ok('when').map(toIso).filter(Boolean).sort();
+  const next = {
+    ...base,
+    utrs: [...(base.utrs || []).filter((u) => !shown.has(u)), ...ok('utr').map((u) => u.replace(/\s/g, '').toUpperCase())],
+    amount: amounts.length ? amounts.reduce((sum, a) => sum + amountValue(a), 0).toFixed(2) : base.amount,
+    lossAt: [dates[0], base.lossAt].filter(Boolean).sort()[0],
+    bank: canonicalBank(ok('bank').at(-1)) || base.bank,
+  };
+  saveCase(cards.some((c) => c.state === 'ok') ? markDone(next, 'proof', true) : next);
+}
+
+function renderCards() {
+  const groups = new Map();
+  for (const c of cards) {
+    const key = c.group ?? `solo-${c.id}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(c);
+  }
+  $('cards').replaceChildren(...[...groups.values()].map((list) => h('div', { className: 'card-group' }, ...list.map(cardEl))));
+}
+
+function cardEl(c) {
+  const value = h('p', { className: 'card-value', textContent: c.value });
+  const state = h('p', { className: 'card-state', textContent: c.state === 'ok' ? T.confirmed : c.state === 'wrong' ? T.leftOut : '' });
+  const btn = (label, onClick, pressed) => {
+    const b = h('button', { type: 'button', className: 'secondary', textContent: label });
+    if (pressed !== undefined) b.setAttribute('aria-pressed', String(pressed));
+    b.addEventListener('click', onClick);
+    return b;
+  };
+  const set = (st) => { c.state = c.state === st ? 'new' : st; syncCase(); renderCards(); $(`card-${c.id}`)?.querySelector('button')?.focus(); };
+  const edit = () => {
+    const input = h('input', { type: 'text', value: c.value, spellcheck: false, id: `edit-${c.id}` });
+    input.setAttribute('aria-label', T.kinds[c.kind]);
+    const save = btn(T.saveEdit, () => {
+      c.value = input.value.trim() || c.value;
+      c.state = 'new'; // an edited value still needs Correct before it reaches the case
+      syncCase();
+      renderCards();
+    });
+    value.replaceWith(h('div', { className: 'inline-field' }, input, save));
+    input.focus();
+  };
+  const el = h('div', { className: 'card', id: `card-${c.id}` },
+    h('p', { className: 'card-kind', textContent: T.kinds[c.kind] }),
+    value,
+    h('p', { className: 'card-source', textContent: `${T.fromLine} ${c.source}` }),
+    h('div', { className: 'card-actions' }, btn(T.correct, () => set('ok'), c.state === 'ok'), btn(T.wrong, () => set('wrong'), c.state === 'wrong'), btn(T.edit, edit)),
+    state);
+  el.dataset.state = c.state;
+  el.dataset.kind = c.kind;
+  return el;
+}
+
+$('files').addEventListener('change', (e) => {
+  readFiles(e.target.files).finally(() => { e.target.value = ''; }); // the picked files are not kept
+});
 $('find').addEventListener('click', () => {
-  if ($('sms').value !== extractedFrom.sms) payments = extractPayments($('sms').value);
-  extractedFrom.sms = $('sms').value;
-  renderPayments();
-  renderReady();
-  $('review').hidden = false;
-  $('review-title').focus();
+  ocrStatus.textContent = '';
+  showCards([$('sms').value]);
 });
 
-$('add-payment').addEventListener('click', () => {
-  payments.push(Object.fromEntries(COLS.map((k) => [k, ''])));
-  renderPayments();
-  $(`pay-${payments.length - 1}-when`).focus();
+// A typed bank name is kept only if it is one of the known banks, never as free text.
+$('bank').addEventListener('change', () => {
+  const name = canonicalBank(val('bank'));
+  if (name) saveCase({ ...kase, bank: name });
 });
 
-$('save-case').addEventListener('click', () => {
-  const total = totalLost(payments);
-  const dates = payments.map((p) => toIso(p.when)).filter(Boolean).sort();
-  saveCase(markDone({
-    ...kase,
-    amount: total ? total.toFixed(2) : kase.amount,
-    utrs: [...(kase.utrs || []), ...payments.map((p) => p.utr.trim().toUpperCase())],
-    lossAt: dates[0] || kase.lossAt,
-    bank: val('bank') || kase.bank,
-  }, 'proof', true));
-  $('save-status').textContent = T.caseSaved;
-});
+// Files shared to the app from WhatsApp, Gallery or Files arrive here from app.js, in memory.
+export function receiveShare(files) {
+  if (files?.length) readFiles(files);
+}
 
 // ---------- Voice for the letter: on the phone when possible, otherwise only after the person agrees ----------
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -266,8 +346,12 @@ const longDate = (d) => d.toLocaleDateString(`${LANG}-IN`, { day: 'numeric', mon
 function data() {
   const channel = $('channel');
   const type = $('fraud-type');
-  // Without this visit's payments, the saved case still gives the UTRs and the total.
-  const rows = payments.length ? payments : (kase.utrs || []).map((utr) => ({ utr }));
+  // Rows from cards marked Correct; without any, the saved case still gives the UTRs and the total.
+  const okRows = [...new Set(cards.filter((c) => c.group !== null && c.state === 'ok').map((c) => c.group))].map((g) => {
+    const get = (kind) => cards.find((c) => c.group === g && c.kind === kind && c.state === 'ok');
+    return { when: get('when')?.value || '', amount: get('amount')?.value || '', utr: get('utr')?.value || '', to: get('payee')?.value || '', mode: get('payee')?.mode || '', from: get('payee')?.from || '' };
+  });
+  const rows = okRows.length ? okRows : (kase.utrs || []).map((utr) => ({ utr }));
   return {
     recipient: form.querySelector('input[name="recipient"]:checked')?.value || 'police',
     name: val('name'), mobile: val('mobile'), email: val('email'), address: val('address'),
@@ -277,7 +361,7 @@ function data() {
     typeName: type.value ? type.selectedOptions[0].textContent : '',
     story: story.value,
     payments: rows,
-    total: payments.length ? undefined : Number(kase.amount || 0),
+    total: okRows.some((r) => r.amount) ? undefined : Number(kase.amount || 0),
     contacts: $('contacts').value.split('\n').map((x) => x.trim()).filter(Boolean),
     date: longDate(new Date()),
   };
@@ -374,10 +458,12 @@ const micHint = micStatus.textContent;
 $('clear').addEventListener('click', () => {
   rec?.abort();
   if ('speechSynthesis' in window) speechSynthesis.cancel();
-  extractedFrom = { sms: null, story: null };
-  payments = [];
+  extractedFrom = { story: null };
+  cards = [];
+  base = {};
   micStatus.textContent = micHint;
-  for (const id of ['mic-interim', 'doc-status', 'ack-status', 'save-status', 'form-status']) $(id).textContent = '';
+  for (const id of ['mic-interim', 'doc-status', 'ack-status', 'ocr-status', 'form-status']) $(id).textContent = '';
+  $('cards').replaceChildren();
   form.reset();
   for (const id of ['contacts', 'sms', 'bank', 'ack']) $(id).value = '';
   $('fraud-type').value = '';

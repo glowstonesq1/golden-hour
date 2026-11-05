@@ -71,6 +71,7 @@ export function extractPayments(text) {
       utr: first(UTR, m),
       to: m.match(UPI_ID)?.[0] || payee.trim(),
       from: account ? `XX${account.slice(-4)}` : '', // never keep the person's full account number
+      source: m, // the message it came from, shown beside each value for checking
     };
     if (account && row.utr === account) row.utr = '';
     for (const k of ['amount', 'utr', 'to']) if (row[k] && !verbatim(row[k], m)) row[k] = '';

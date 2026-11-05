@@ -169,6 +169,26 @@ h3 { font-size: 1.0625rem; line-height: 1.35; margin: 0 0 0.25rem; }
 .inline-field input { flex: 1 1 12rem; width: auto; }
 .letter { margin-top: 2.5rem; padding-top: 1.5rem; border-top: 1px solid var(--line); }
 
+/* Proof: the file button, the paste fallback and the cards to confirm */
+.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.file-pick { width: 100%; margin: 0.25rem 0 0.5rem; }
+label.file-pick:has(+ #files:focus-visible) { outline: 3px solid var(--focus); outline-offset: 3px; }
+details#paste { margin: 0.75rem 0; }
+details#paste summary { cursor: pointer; font-weight: 700; color: var(--accent); min-height: 2.75rem; display: flex; align-items: center; }
+.card-group { margin: 1rem 0; padding: 0.25rem 0; border-top: 1px solid var(--line); }
+.card { margin: 0.75rem 0; padding: 0.9rem 1rem; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); }
+.card[data-state="ok"] { border-color: var(--accent); box-shadow: inset 4px 0 0 var(--accent); }
+.card[data-state="wrong"] { opacity: 0.6; }
+.card[data-state="wrong"] .card-value { text-decoration: line-through; }
+.card-kind { margin: 0; font-size: 0.95rem; color: var(--muted); }
+.card-value { margin: 0.1rem 0 0.35rem; font-size: 1.2rem; font-weight: 750; overflow-wrap: anywhere; }
+.card-source { margin: 0 0 0.6rem; font-size: 0.9rem; color: var(--muted); overflow-wrap: anywhere; }
+.card-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.card-actions button { min-height: 2.75rem; padding: 0.45rem 0.9rem; }
+.card-actions [aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.card-state { margin: 0.4rem 0 0; min-height: 1.2em; font-size: 0.9rem; color: var(--muted); }
+.total-line { font-weight: 750; }
+
 .steps { list-style: none; counter-reset: step; padding: 0; margin: 1.5rem 0; }
 .steps li { counter-increment: step; position: relative; padding: 0 0 1.6rem 3.25rem; }
 .steps li::before {

@@ -225,6 +225,19 @@ const fakes = ({ onDevice, localVoice }) => {
   } });
 };
 const allowed = new Set(['lossAt', 'amount', 'ack', 'bankRef', 'mrmId', 'bank', 'utrs', 'done']);
+// Taps Correct on every card of the given kinds (all kinds by default).
+async function confirmCards(p, kinds = ['amount', 'when', 'utr', 'payee', 'bank', 'scammer']) {
+  for (const kind of kinds) {
+    const n = await p.locator(`.card[data-kind="${kind}"]`).count();
+    for (let i = 0; i < n; i++) await p.locator(`.card[data-kind="${kind}"]`).nth(i).getByRole('button', { name: /^(Correct|सही|बरोबर)$/ }).click();
+  }
+}
+async function pasteProof(p, text) {
+  await p.locator('#paste summary').click();
+  await p.fill('#sms', text);
+  await p.click('#find');
+  await p.locator('#review:not([hidden])').waitFor();
+}
 const savedCase = async (p) => JSON.parse((await p.evaluate("localStorage.getItem('gh-case-v1')")) || '{}');
 
 const rctx = await browser.newContext({ viewport: { width: 360, height: 780 } });
@@ -247,13 +260,18 @@ await rp.fill('#ack', '31910280012345');
 await rp.click('#ack-save');
 check((await savedCase(rp)).ack === '31910280012345' && !!(await savedCase(rp)).done?.call, 'ack: a valid number is saved and step 1 is marked done');
 
-await rp.fill('#sms', SMS);
-await rp.fill('#bank', 'State Bank of India');
-await rp.click('#find');
-check((await rp.locator('#payments .payment').count()) === 2, 'proof: two payments found in the pasted SMS');
-await rp.click('#save-case');
+await pasteProof(rp, SMS);
+check((await rp.locator('.card[data-kind="amount"]').count()) === 2, 'proof: two amounts found in the pasted SMS');
+check(!(await rp.evaluate("localStorage.getItem('gh-case-v1')")).includes('13499'), 'proof: nothing enters the case before Correct');
+await confirmCards(rp, ['amount']);
+check((await savedCase(rp)).amount === '13499.50' && (await rp.innerText('#total-line')).includes('Rs 13,499.50'), 'proof: total computed from the amounts marked Correct');
+await rp.locator('.card[data-kind="amount"]').nth(1).getByRole('button', { name: 'Wrong' }).click();
+check((await savedCase(rp)).amount === '12000.00', 'proof: marking a value Wrong takes it out of the case');
+await rp.locator('.card[data-kind="amount"]').nth(1).getByRole('button', { name: 'Correct' }).click();
+await confirmCards(rp, ['when', 'utr', 'payee', 'bank']);
 let c = await savedCase(rp);
-check(c.amount === '13499.50' && c.utrs?.length === 2 && c.lossAt === '2026-10-28' && c.bank === 'State Bank of India', 'proof: amount, UTRs, date and bank saved to the case');
+check(c.amount === '13499.50' && c.utrs?.length === 2 && c.lossAt === '2026-10-28' && ['State Bank of India', 'HDFC Bank'].includes(c.bank), 'proof: amount, UTRs, date and bank saved to the case');
+check((await rp.locator('.card[data-kind="utr"] .card-source').first().innerText()).includes('Refno 482910384756'), 'proof: each card shows the line it came from');
 check(!!c.done?.proof && (await rp.locator('#step-block.is-next').count()) === 1, 'proof: step marked done and the next step moves on');
 const ready = await rp.innerText('#ready-list');
 check(ready.includes('Rs 13,499.50') && ready.includes('482910384756') && ready.includes('refund221@ybl'), 'call card: amount, UTRs and the scammer UPI ID shown');
@@ -284,8 +302,13 @@ let doc = await rp.innerText('#doc');
 check(doc.includes('Rs 13,499.50') && doc.includes('482910384756') && doc.includes('Sunita Deshpande') && doc.includes('Phone call'), 'letter: total, UTR, name and contact method');
 check(doc.includes('31910280012345') && doc.includes('KYC update or account block'), 'letter: acknowledgement number from the case, fraud type from the story');
 check((await rp.inputValue('#contacts')).includes('9876543210') && (await rp.inputValue('#contacts')).includes('refund221@ybl'), "letter: scammer's number and UPI ID listed");
-await rp.fill('#pay-0-amount', '10,000.00');
-check((await rp.innerText('#doc')).includes('Rs 11,499.50'), 'letter: editing a payment amount updates the total');
+await rp.locator('.card[data-kind="amount"]').first().getByRole('button', { name: 'Edit' }).click();
+await rp.fill('#edit-c0', '10,000.00');
+await rp.locator('#card-c0').getByRole('button', { name: 'Save', exact: true }).click();
+check((await savedCase(rp)).amount === '1499.50', 'proof: an edited value leaves the case until it is marked Correct again');
+await rp.locator('.card[data-kind="amount"]').first().getByRole('button', { name: 'Correct' }).click();
+await rp.click('.report-form > button.primary');
+check((await rp.innerText('#doc')).includes('Rs 11,499.50'), 'letter: an edited, confirmed amount updates the total');
 await rp.selectOption('#fraud-type', 'otp');
 check((await rp.innerText('#doc')).includes('OTP or screen-sharing request'), 'letter: fraud type can be changed');
 c = await savedCase(rp);
@@ -308,12 +331,12 @@ if (SHOTS) await rp.screenshot({ path: `${SHOTS}/journey-filled.png`, fullPage: 
 // The case survives a reload: the call card and a letter still work from the saved fields alone.
 await rp.reload();
 await rp.locator('#ack').waitFor();
-check((await rp.inputValue('#ack')) === '31910280012345' && (await rp.innerText('#ready-list')).includes('Rs 13,499.50'), 'case: kept after reload');
+check((await rp.inputValue('#ack')) === '31910280012345' && (await rp.innerText('#ready-list')).includes('Rs 11,499.50'), 'case: kept after reload');
 check(!(await rp.innerText('#ready-list')).includes('refund221'), "case: the scammer's UPI ID was never stored");
 await rp.fill('#story', 'They called me.');
 await rp.click('.report-form > button.primary');
 doc = await rp.innerText('#doc');
-check(doc.includes('Rs 13,499.50') && doc.includes('773829104857'), 'letter: built from the saved case after a reload');
+check(doc.includes('Rs 11,499.50') && doc.includes('773829104857'), 'letter: built from the saved case after a reload');
 await rp.goto(`${BASE}/`);
 check((await rp.innerText('#help-sub')).includes('Block your card and UPI'), 'home: the I lost money door names the next step');
 await rp.goto(`${BASE}/help/`);
@@ -327,9 +350,8 @@ await cctx.addInitScript(fakes, { onDevice: false, localVoice: false });
 const cp = await cctx.newPage();
 await cp.goto(`${BASE}/hi/help/`);
 await cp.locator('#mic').waitFor();
-await cp.fill('#sms', SMS);
-await cp.click('#find');
-await cp.click('#save-case');
+await pasteProof(cp, SMS);
+await confirmCards(cp);
 check(await cp.locator('#read-aloud').isHidden(), 'read aloud: never offered with only network voices');
 await cp.click('#mic');
 check(await cp.locator('dialog.consent').isVisible(), 'mic: asks before sending a voice off the phone');
@@ -346,6 +368,88 @@ await cp.locator('#doc').waitFor();
 check((await cp.innerText('#doc')).includes('विषय: Rs 13,499.50 की ऑनलाइन वित्तीय धोखाधड़ी की शिकायत'), 'letter: Hindi letter');
 await cctx.close();
 
+// 8. Proof from files: two screenshots picked, two screenshots shared, a WhatsApp .zip export.
+// The screenshots are rendered here, then read on the "phone" by the vendored OCR.
+const shotsPage = await browser.newPage();
+async function smsImage(text) {
+  await shotsPage.setContent(`<div id="m" style="width:360px;padding:16px;font:17px FreeSans,sans-serif;background:#fff;color:#111"><div style="background:#ececec;border-radius:12px;padding:12px">${text}</div></div>`);
+  return shotsPage.locator('#m').screenshot();
+}
+const img1 = await smsImage('Dear Customer, your A/c XX4821 is debited by Rs.12,000.00 on 28-Oct-26 trf to Ramesh Kumar Refno 482910384756. If not done by you, call 1800111109 -SBI');
+const img2 = await smsImage('Rs.1,499.50 debited from a/c **4821 on 28-Oct-26 to VPA refund221@ybl (UPI Ref No 773829104857). Not you? Call 18002586161 -HDFC Bank');
+await shotsPage.close();
+// A stored (uncompressed) zip with one chat .txt and one "photo", like a WhatsApp export.
+function storedZip(entries) {
+  const enc = new TextEncoder();
+  const parts = []; const central = []; let offset = 0;
+  for (const [name, text] of entries) {
+    const nb = enc.encode(name); const body = enc.encode(text);
+    const lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint32(18, body.length, true); lh.setUint32(22, body.length, true); lh.setUint16(26, nb.length, true);
+    const ch = new DataView(new ArrayBuffer(46));
+    ch.setUint32(0, 0x02014b50, true); ch.setUint32(20, body.length, true); ch.setUint32(24, body.length, true); ch.setUint16(28, nb.length, true); ch.setUint32(42, offset, true);
+    parts.push(new Uint8Array(lh.buffer), nb, body); central.push(new Uint8Array(ch.buffer), nb);
+    offset += 30 + nb.length + body.length;
+  }
+  const cdLen = central.reduce((n, a) => n + a.length, 0);
+  const end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0, 0x06054b50, true); end.setUint16(8, entries.length, true); end.setUint16(10, entries.length, true); end.setUint32(12, cdLen, true); end.setUint32(16, offset, true);
+  return Buffer.concat([...parts, ...central, new Uint8Array(end.buffer)].map((a) => Buffer.from(a)));
+}
+const chatZip = storedZip([
+  ['WhatsApp Chat with Agent.txt', '28/10/26, 2:15 pm - +91 98765 43210: Sir pay processing fee to help123@ybl\n28/10/26, 2:16 pm - You: ok'],
+  ['IMG-20261028-WA0001.jpg', 'not a real photo'],
+]);
+
+const fctx = await browser.newContext({ viewport: { width: 360, height: 780 } });
+const fp = await fctx.newPage();
+fp.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+fp.on('pageerror', (e) => errors.push(String(e)));
+await fp.goto(`${BASE}/`);
+await fp.evaluate('navigator.serviceWorker.ready');
+await fp.goto(`${BASE}/help/`);
+await fp.locator('#files').waitFor({ state: 'attached' });
+check(await fp.locator('label.file-pick').isVisible(), 'proof: Choose screenshots button shown');
+await fp.setInputFiles('#files', [
+  { name: 'sms1.png', mimeType: 'image/png', buffer: img1 },
+  { name: 'sms2.png', mimeType: 'image/png', buffer: img2 },
+]);
+await fp.locator('#review:not([hidden])').waitFor({ timeout: 120000 });
+const pickedUtrs = await fp.locator('.card[data-kind="utr"] .card-value').allInnerTexts();
+check(pickedUtrs.includes('482910384756') && pickedUtrs.includes('773829104857'), `picked screenshots: both UTRs read on the phone (${pickedUtrs})`);
+await confirmCards(fp, ['amount']);
+check((await savedCase(fp)).amount === '13499.50', 'picked screenshots: total from the two confirmed amounts');
+await fp.setInputFiles('#files', { name: 'WhatsApp Chat with Agent.zip', mimeType: 'application/zip', buffer: chatZip });
+await fp.locator('.card[data-kind="scammer"]').first().waitFor({ timeout: 20000 });
+const scammer = await fp.locator('.card[data-kind="scammer"] .card-value').allInnerTexts();
+check(scammer.some((x) => x.includes('98765 43210')) && scammer.some((x) => x.includes('help123@ybl')), `chat export (.zip): scammer number and UPI ID found (${scammer})`);
+
+// Share two screenshots to the app: they arrive on the proof step, in memory.
+await fp.goto(`${BASE}/hi/`);
+await fp.evaluate(async ([a, b]) => {
+  const f = document.createElement('form');
+  f.method = 'POST'; f.action = '/hi/share-target/'; f.enctype = 'multipart/form-data';
+  const input = document.createElement('input');
+  input.type = 'file'; input.name = 'files'; input.multiple = true;
+  const dt = new DataTransfer();
+  for (const [name, b64] of [['s1.png', a], ['s2.png', b]]) dt.items.add(new File([Uint8Array.from(atob(b64), (ch) => ch.charCodeAt(0))], name, { type: 'image/png' }));
+  input.files = dt.files;
+  f.append(input);
+  document.body.append(f);
+  f.submit();
+}, [img1.toString('base64'), img2.toString('base64')]);
+await fp.waitForURL(`${BASE}/hi/help/**`);
+await fp.locator('#review:not([hidden])').waitFor({ timeout: 120000 });
+const sharedUtrs = await fp.locator('.card[data-kind="utr"] .card-value').allInnerTexts();
+check(sharedUtrs.includes('482910384756') && sharedUtrs.includes('773829104857'), 'shared screenshots: land on the Hindi proof step and are read');
+names = await storageNames(fp);
+const ocrKeys = await fp.evaluate(async () => (await (await caches.open('gh-ocr-7.0.0')).keys()).map((r) => new URL(r.url).pathname));
+check(names.caches.every((k) => /^gh-[0-9a-f]{12}$/.test(k) || k === 'gh-ocr-7.0.0') && !names.idb.length && names.local.join() === 'gh-case-v1',
+  `images: no IndexedDB, no extra caches, only the case in localStorage (${names.caches}; ${names.idb}; ${names.local})`);
+check(ocrKeys.length > 0 && ocrKeys.every((k) => k.startsWith('/vendor/') || k === '/ocr.js'), 'images: the OCR cache holds only the engine and language data, never an image');
+check(!(await fp.evaluate("localStorage.getItem('gh-case-v1')")).includes('png'), 'images: nothing about the screenshots in the saved case');
+await fctx.close();
+
 const mctx = await browser.newContext();
 const mp = await mctx.newPage();
 await mp.goto(`${BASE}/mr/help/`);
@@ -356,6 +460,9 @@ await mp.locator('[data-done="call"][aria-pressed="true"]').waitFor();
 check(!/[०-९]/.test(await mp.innerText('[data-done="call"]')), 'Marathi: dates use Latin digits');
 await mctx.close();
 
+// The vendored OCR engine prints its own tuning notices ("Warning: Parameter not found: ...") to stderr;
+// they are not page errors. Everything else still fails the run.
+errors.splice(0, errors.length, ...errors.filter((e) => !/^Warning: Parameter not found: /.test(e)));
 const csp = errors.filter((e) => e.includes('Content Security Policy') || e.includes('Refused'));
 check(!csp.length, `no CSP violations (${csp.slice(0, 2)})`);
 check(!errors.length, `no console errors (${errors.slice(0, 3)})`);

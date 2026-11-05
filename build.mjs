@@ -13,8 +13,10 @@ export const PAGES = ['', 'help/', 'check/', 'report/', 'case/', 'terms/', 'priv
 
 // Content-Security-Policy shared by vercel.json (header) and the meta tag (for hosts without headers).
 // frame-ancestors only works as a header, so the meta copy leaves it out.
+// 'wasm-unsafe-eval' lets the on-device OCR (vendored Tesseract.js) compile its WebAssembly. It allows
+// compiling WebAssembly only: JavaScript eval and new Function stay blocked, and scripts stay 'self'.
 export const CSP_META =
-  "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; " +
+  "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self'; font-src 'self'; " +
   "connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'";
 
 export const esc = (s) =>
@@ -64,9 +66,10 @@ function journeyStrings(s) {
   const pick = (o, keys) => Object.fromEntries(keys.map((k) => [k, o[k]]));
   return {
     ...pick(r, ['mic', 'micStop', 'micListening', 'micLocal', 'micDownloading', 'micDenied', 'micNetwork', 'micError',
-      'consentTitle', 'consentBody', 'consentYes', 'consentNo', 'needStory', 'noPayments', 'removePayment', 'paymentN',
-      'copied', 'copyFail', 'doc']),
-    ...pick(h, ['ready', 'readAloud', 'ackSaved', 'ackInvalid', 'done', 'undone', 'caseSaved', 'caseCleared']),
+      'consentTitle', 'consentBody', 'consentYes', 'consentNo', 'needStory', 'copied', 'copyFail', 'doc']),
+    ...pick(h, ['ready', 'readAloud', 'ackSaved', 'ackInvalid', 'done', 'undone', 'caseCleared', 'ocrLoading', 'ocrReading',
+      'ocrFailed', 'ocrSlow', 'zipFailed', 'noneFound', 'kinds', 'fromLine', 'correct', 'wrong', 'edit', 'saveEdit',
+      'confirmed', 'leftOut', 'totalLine']),
     steps: Object.fromEntries(h.steps.map((st) => [st.id, st.title])),
   };
 }
@@ -92,18 +95,23 @@ function stepExtra(s, p, id) {
   if (id === 'proof') {
     return `
         <div class="js-only" hidden>
-          <label for="sms">${esc(r.smsLabel)}</label>
-          <p class="hint" id="sms-hint">${esc(r.smsHint)}</p>
-          <textarea id="sms" rows="5" aria-describedby="sms-hint" spellcheck="false"></textarea>
+          <p class="hint" id="proof-hint">${esc(h.proofHint)}</p>
+          <label for="files" class="file-pick primary">${esc(h.proofChoose)}</label>
+          <input id="files" class="visually-hidden" type="file" accept="image/*,.txt,.zip,text/plain,application/zip" multiple aria-describedby="proof-hint">
+          <p id="ocr-status" class="status" role="status" aria-live="polite"></p>
+          <details id="paste">
+            <summary>${esc(h.pasteToggle)}</summary>
+            <label for="sms">${esc(r.smsLabel)}</label>
+            <p class="hint" id="sms-hint">${esc(r.smsHint)}</p>
+            <textarea id="sms" rows="5" aria-describedby="sms-hint" spellcheck="false"></textarea>
+            <button type="button" id="find" class="secondary">${esc(h.find)}</button>
+          </details>
           ${field('bank', r.bank, 'text', 'autocomplete="off"')}
-          <button type="button" id="find" class="primary">${esc(h.find)}</button>
           <section id="review" class="review reveal" hidden aria-labelledby="review-title">
-            <h3 id="review-title" tabindex="-1">${esc(r.checkTitle)}</h3>
-            <p class="hint">${esc(r.checkHint)}</p>
-            <div id="payments"></div>
-            <button type="button" id="add-payment" class="secondary">${esc(r.addPayment)}</button>
-            <button type="button" id="save-case" class="primary">${esc(h.saveCase)}</button>
-            <p id="save-status" class="status" role="status" aria-live="polite"></p>
+            <h3 id="review-title" tabindex="-1">${esc(h.cardsTitle)}</h3>
+            <p class="hint">${esc(h.cardsHint)}</p>
+            <div id="cards"></div>
+            <p id="total-line" class="total-line"></p>
           </section>
         </div>`;
   }
@@ -323,11 +331,17 @@ export function manifest(strings, lang) {
       { src: '/icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
     ],
     // POST so a shared message never appears in a URL; the service worker answers it on the device.
+    // Files (screenshots, a WhatsApp chat export) are passed to the page in memory, never stored.
     share_target: {
       action: `${p}share-target/`,
       method: 'POST',
       enctype: 'multipart/form-data',
-      params: { title: 'title', text: 'text', url: 'url' },
+      params: {
+        title: 'title',
+        text: 'text',
+        url: 'url',
+        files: [{ name: 'files', accept: ['image/*', 'text/plain', 'application/zip', '.txt', '.zip'] }],
+      },
     },
   };
 }
@@ -339,6 +353,8 @@ export async function loadStrings() {
   }
   return out;
 }
+
+export const isOcrFile = (f) => f.startsWith('/vendor/') || f === '/ocr.js';
 
 async function listFiles(dir, base = dir) {
   const out = [];
@@ -368,10 +384,12 @@ export async function build(outDir = join(ROOT, 'dist')) {
   }
 
   // Precache everything built so the app works offline; the hash changes the worker on every content change.
+  // OCR is left out (the engine and language data in /vendor/, about 16 MB, and the /ocr.js glue): it is fetched
+  // only when someone first reads a screenshot, then kept by the worker's runtime cache.
   const files = (await listFiles(outDir)).sort();
   const hash = createHash('sha256');
   for (const f of files) hash.update(f).update(await readFile(join(outDir, f)));
-  const precache = files.map((f) => f.replace(/index\.html$/, ''));
+  const precache = files.filter((f) => !isOcrFile(f)).map((f) => f.replace(/index\.html$/, ''));
   const sw = (await readFile(join(ROOT, 'static/sw.js'), 'utf8'))
     .replace('__VERSION__', hash.digest('hex').slice(0, 12))
     .replace('__PRECACHE__', JSON.stringify(precache))

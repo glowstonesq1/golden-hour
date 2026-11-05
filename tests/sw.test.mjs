@@ -19,6 +19,8 @@ before(async () => {
 class FakeResponse {
   constructor(body = '', init = {}) { this.body = body; this.status = init.status ?? 200; }
   async text() { return String(this.body ?? ''); }
+  get ok() { return this.status >= 200 && this.status < 300; }
+  clone() { return new FakeResponse(this.body, { status: this.status }); }
   static redirect(location, status) { return Object.assign(new FakeResponse(null, { status }), { location }); }
   static error() { return new FakeResponse(null, { status: 0 }); }
 }
@@ -74,7 +76,7 @@ function loadWorker({ online = true } = {}) {
     handlers.message({ data: { type: 'take-share' }, ports: [{ postMessage: (m) => { reply = m; } }] });
     return reply?.text;
   }
-  return { caches, stores, fetched, lifecycle, dispatch, take };
+  return { caches, stores, fetched, lifecycle, dispatch, take, handlers };
 }
 
 const post = (path, fields, { broken = false } = {}) => ({
@@ -155,6 +157,29 @@ test('activating removes old versions and the old share cache, keeping only the 
   const keys = await w.caches.keys();
   assert.equal(keys.length, 1);
   assert.match(keys[0], /^gh-[0-9a-f]{12}$/);
+});
+
+test('shared files go to the proof step and are handed over in memory, never cached', async () => {
+  const w = loadWorker();
+  const shot = { name: 'receipt.png', size: 1234, type: 'image/png' };
+  const res = await w.dispatch({ url: `${ORIGIN}/mr/share-target/`, method: 'POST', mode: 'navigate',
+    async formData() { return { get: () => null, getAll: (k) => (k === 'files' ? [shot, { name: 'empty', size: 0 }] : []) }; } });
+  assert.equal(res.location, '/mr/help/?shared=1#step-proof');
+  assert.deepEqual(await w.caches.keys(), []);
+  let reply;
+  w.handlers.message({ data: { type: 'take-share' }, ports: [{ postMessage: (m) => { reply = m; } }] });
+  assert.deepEqual(reply.files, [shot], 'empty files are dropped');
+});
+
+test('OCR files are cached on first use in their own cache, which survives a new version', async () => {
+  const w = loadWorker();
+  await w.lifecycle('install');
+  await w.dispatch(get('/vendor/tessdata/eng.traineddata.gz', 'cors'));
+  await w.caches.open('gh-oldversion');
+  await w.lifecycle('activate');
+  const keys = await w.caches.keys();
+  assert.ok(keys.includes('gh-ocr-7.0.0') && !keys.includes('gh-oldversion'));
+  assert.ok(await (await w.caches.open('gh-ocr-7.0.0')).match('/vendor/tessdata/eng.traineddata.gz'));
 });
 
 test('a share lives only in memory, is handed over once, and never touches Cache Storage', async () => {

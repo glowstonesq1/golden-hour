@@ -1,0 +1,468 @@
+{
+  "generated": "2026-11-05",
+  "summary": {
+    "dev": {
+      "images": 15,
+      "field": {
+        "amount": [
+          15,
+          15
+        ],
+        "when": [
+          15,
+          15
+        ],
+        "utr": [
+          15,
+          15
+        ],
+        "payee": [
+          7,
+          12
+        ]
+      },
+      "byLang": {
+        "en": [
+          32,
+          36
+        ],
+        "hi": [
+          9,
+          9
+        ],
+        "mr": [
+          11,
+          12
+        ]
+      },
+      "cer": 0.015257261891816828,
+      "msPerImage": 192.93333333333334
+    },
+    "test": {
+      "images": 15,
+      "field": {
+        "amount": [
+          11,
+          15
+        ],
+        "when": [
+          5,
+          15
+        ],
+        "utr": [
+          3,
+          15
+        ],
+        "payee": [
+          8,
+          15
+        ]
+      },
+      "byLang": {
+        "en": [
+          12,
+          36
+        ],
+        "hi": [
+          6,
+          12
+        ],
+        "mr": [
+          9,
+          12
+        ]
+      },
+      "cer": 0.00626804682883569,
+      "msPerImage": 104
+    }
+  },
+  "rows": [
+    {
+      "id": "en-sbi.1",
+      "split": "dev",
+      "lang": "en",
+      "fields": {
+        "amount": true,
+        "when": true,
+        "utr": true,
+        "payee": true
+      },
+      "cer": 0,
+      "ms": 496
+    },
+    {
+      "id": "en-sbi.2",
+      "split": "dev",
+      "lang": "en",
+      "fields": {
+        "amount": true,
+        "when": true,
+        "utr": true,
+        "payee": true
+      },
+      "cer": 0,
+      "ms": 99
+    },
+    {
+      "id": "en-sbi.3",
+      "split": "dev",
+      "lang": "en",
+      "fields": {
+        "amount": true,
+        "when": true,
+        "utr": true,
+        "payee": true
+      },
+      "cer": 0,
+      "ms": 127
+    },
+    {
+      "id": "en-icici.1",
+      "split": "dev",
+      "lang": "en",
+      "fields": {
+        "amount": true,
+        "when": true,
+        "utr": true,
+        "payee": false
+      },
+      "cer": 0,
+      "ms": 85
+    },
+    {
+      "id": "en-icici.2",
+      "split": "dev",
+      "lang": "en",
+      "fields": {
+        "amount": true,
+        "when": true,
+        "utr": true,
+        "payee": false
+      },
+      "cer": 0,
+      "ms": 72
+    },
+    {
+      "id": "en-icici.3",
+      "split": "dev",
+      "lang": "en",
+      "fields": {
+        "amount": true,
+        "when": true,
+        "utr": true,
+        "payee": false
+      },
+      "cer": 0,
+      "ms": 79
+    },
+    {
+      "id": "en-kotak.1",
+      "split": "dev",
+      "lang": "en",
+      "fields": {
+        "amount": true,
+        "when": true,
+        "utr": true,
+        "payee": false
+      },
+      "cer": 0.00819672131147541,
+      "ms": 117
+    },
+    {
+      "id": "en-kotak.2",
+      "split": "dev",
+      "lang": "en",
+      "fields": {
+        "amount": true,
+        "when": true,
+        "utr": true,
+        "payee": true
+      },
+      "cer": 0,
+      "ms": 77
+    },
+    {
+      "id": "en-kotak.3",
+      "split": "dev",
+      "lang": "en",
+      "fields": {
+        "amount": true,
+        "when": true,
+        "utr": true,
+        "payee": true
+      },
+      "cer": 0,
+      "ms": 77
+    },
+    {
+      "id": "en-hdfc.1",
+      "split": "test",
+      "lang": "en",
+      "fields": {
+        "amount": true,
+        "when": false,
+        "utr": true,
+        "payee": true
+      },
+      "cer": 0.0070921985815602835,
+      "ms": 102
+    },
+    {
+      "id": "en-hdfc.2",
+      "split": "test",
+      "lang": "en",
+      "fields": {
+        "amount": true,
+        "when": false,
+        "utr": true,
+        "payee": true
+      },
+      "cer": 0.013986013986013986,
+      "ms": 88
+    },
+    {
+      "id": "en-hdfc.3",
+      "split": "test",
+      "lang": "en",
+      "fields": {
+        "amount": true,
+        "when": false,
+        "utr": true,
+        "payee": true
+      },
+      "cer": 0.0070921985815602835,
+      "ms": 91
+    },
+    {
+      "id": "en-axis.1",
+      "split": "test",
+      "lang": "en",
+      "fields": {
+        "amount": true,
+        "when": false,
+        "utr": false,
+        "payee": false
+      },
+      "cer": 0.007692307692307693,
+      "ms": 91
+    },
+    {
+      "id": "en-axis.2",
+      "split": "test",
+      "lang": "en",
+      "fields": {
+        "amount": true,
+        "when": false,
+        "utr": false,
+        "payee": false
+      },
+      "cer": 0.007751937984496124,
+      "ms": 85
+    },
+    {
+      "id": "en-axis.3",
+      "split": "test",
+      "lang": "en",
+      "fields": {
+        "amount": true,
+        "when": false,
+        "utr": false,
+        "payee": false
+      },
+      "cer": 0.007751937984496124,
+      "ms": 85
+    },
+    {
+      "id": "en-receipt.1",
+      "split": "test",
+      "lang": "en",
+      "fields": {
+        "amount": false,
+        "when": false,
+        "utr": false,
+        "payee": false
+      },
+      "cer": 0.007633587786259542,
+      "ms": 108
+    },
+    {
+      "id": "en-receipt.2",
+      "split": "test",
+      "lang": "en",
+      "fields": {
+        "amount": false,
+        "when": false,
+        "utr": false,
+        "payee": false
+      },
+      "cer": 0.007751937984496124,
+      "ms": 83
+    },
+    {
+      "id": "en-receipt.3",
+      "split": "test",
+      "lang": "en",
+      "fields": {
+        "amount": false,
+        "when": false,
+        "utr": false,
+        "payee": false
+      },
+      "cer": 0.015503875968992248,
+      "ms": 79
+    },
+    {
+      "id": "hi-sbi.1",
+      "split": "dev",
+      "lang": "hi",
+      "fields": {
+        "amount": true,
+        "when": true,
+        "utr": true
+      },
+      "cer": 0.010101010101010102,
+      "ms": 468
+    },
+    {
+      "id": "hi-sbi.2",
+      "split": "dev",
+      "lang": "hi",
+      "fields": {
+        "amount": true,
+        "when": true,
+        "utr": true
+      },
+      "cer": 0.010101010101010102,
+      "ms": 140
+    },
+    {
+      "id": "hi-sbi.3",
+      "split": "dev",
+      "lang": "hi",
+      "fields": {
+        "amount": true,
+        "when": true,
+        "utr": true
+      },
+      "cer": 0.10891089108910891,
+      "ms": 153
+    },
+    {
+      "id": "hi-receipt.1",
+      "split": "test",
+      "lang": "hi",
+      "fields": {
+        "amount": true,
+        "when": true,
+        "utr": false,
+        "payee": true
+      },
+      "cer": 0,
+      "ms": 146
+    },
+    {
+      "id": "hi-receipt.2",
+      "split": "test",
+      "lang": "hi",
+      "fields": {
+        "amount": false,
+        "when": false,
+        "utr": false,
+        "payee": false
+      },
+      "cer": 0.011764705882352941,
+      "ms": 123
+    },
+    {
+      "id": "hi-receipt.3",
+      "split": "test",
+      "lang": "hi",
+      "fields": {
+        "amount": true,
+        "when": true,
+        "utr": false,
+        "payee": true
+      },
+      "cer": 0,
+      "ms": 128
+    },
+    {
+      "id": "mr-bom.1",
+      "split": "dev",
+      "lang": "mr",
+      "fields": {
+        "amount": true,
+        "when": true,
+        "utr": true,
+        "payee": false
+      },
+      "cer": 0.09154929577464789,
+      "ms": 523
+    },
+    {
+      "id": "mr-bom.2",
+      "split": "dev",
+      "lang": "mr",
+      "fields": {
+        "amount": true,
+        "when": true,
+        "utr": true,
+        "payee": true
+      },
+      "cer": 0,
+      "ms": 175
+    },
+    {
+      "id": "mr-bom.3",
+      "split": "dev",
+      "lang": "mr",
+      "fields": {
+        "amount": true,
+        "when": true,
+        "utr": true,
+        "payee": true
+      },
+      "cer": 0,
+      "ms": 206
+    },
+    {
+      "id": "mr-receipt.1",
+      "split": "test",
+      "lang": "mr",
+      "fields": {
+        "amount": true,
+        "when": true,
+        "utr": false,
+        "payee": true
+      },
+      "cer": 0,
+      "ms": 118
+    },
+    {
+      "id": "mr-receipt.2",
+      "split": "test",
+      "lang": "mr",
+      "fields": {
+        "amount": true,
+        "when": true,
+        "utr": false,
+        "payee": true
+      },
+      "cer": 0,
+      "ms": 114
+    },
+    {
+      "id": "mr-receipt.3",
+      "split": "test",
+      "lang": "mr",
+      "fields": {
+        "amount": true,
+        "when": true,
+        "utr": false,
+        "payee": true
+      },
+      "cer": 0,
+      "ms": 119
+    }
+  ]
+}

@@ -16,7 +16,13 @@ Checked on 29 Oct 2026. Results for each set are in [eval/results.md](../eval/re
 | Hinglish scam dataset | [bolewara/hinglish-scam-text-dataset](https://huggingface.co/bolewara/hinglish-scam-text-dataset), CC BY 4.0, Anuj Bolewar | 3,787 (35 Hinglish scam) | Not used yet; its English part duplicates UCI |
 | Hindi Spam SMS | IEEE DataPort, licence not stated | 3,894 | Skipped: files not available, licence unknown |
 
+| Synthetic screenshots | Templates in `eval/ocr-set.mjs`, this repo, MIT; rendered at eval time | 30 images from 10 templates (15 dev, 15 test; 18 English, 6 Hindi, 6 Marathi) | Scores OCR plus extraction. Results in eval/results.md |
+
 The synthetic counts come from `node data/synthetic/generate.mjs`. `npm test` fails if the committed files drift from the generator.
+
+## Software that reads screenshots
+
+The OCR engine is Tesseract.js 7.0.0 with tesseract.js-core 7.0.0 and tessdata_fast language data (eng, hin, mar), all Apache-2.0, vendored in `static/vendor/` with versions, sources and SHA-256 sums in `static/vendor/README.md`. It runs only on the phone.
 
 ## Honest limits
 
@@ -25,6 +31,7 @@ The synthetic counts come from `node data/synthetic/generate.mjs`. `npm test` fa
 - **The test set was looked at once.** The first test run missed one template (a tax refund with a decimal amount). That exposed a general bug (decimal points ended the sentence windows), which was fixed. Both runs are recorded in the README.
 - **Hindi and Marathi templates were written by the same author, not native speakers,** like the app's own Hindi and Marathi text.
 - **The synthetic genuine set missed whole classes of real messages.** Code review found delivery OTPs, "pin code" requests, referral codes and links to real RBI, NPCI, SBI Card and HDFC domains all wrongly called "likely scam", while the synthetic test set still showed 0 false alarms. A clean synthetic score is weak evidence; the review set now guards those cases.
+- **Screenshot accuracy is measured on clean renders, not photos of phones.** The images use the FreeSans font, not Android's Noto fonts, have no compression, glare or status bars, and the test templates are few. On formats the extraction rules were not written for, under half of the fields came out exactly right; OCR itself made few errors, so the extraction rules are the weak part.
 - Public spam datasets are mostly promotions, not fraud, and are not Indian. They only measure false alarms on real genuine messages.
 
 ## How to add the missing sets (on your own machine)

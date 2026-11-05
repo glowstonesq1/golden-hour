@@ -92,10 +92,10 @@ test('Vercel headers: strict CSP and no network destinations other than self', a
   const config = JSON.parse(await readFile(new URL('../vercel.json', import.meta.url), 'utf8'));
   const headers = Object.fromEntries(config.headers[0].headers.map((h) => [h.key, h.value]));
   const csp = headers['Content-Security-Policy'];
-  assert.match(csp, /script-src 'self';/);
+  assert.match(csp, /script-src 'self' 'wasm-unsafe-eval';/, "scripts only from 'self'; WebAssembly may compile (OCR)");
   assert.match(csp, /connect-src 'self';/);
   assert.match(csp, /frame-ancestors 'none'/);
-  assert.doesNotMatch(csp, /unsafe-inline|unsafe-eval|\*/);
+  assert.doesNotMatch(csp, /unsafe-inline|(?<!wasm-)unsafe-eval|\*/, "no inline scripts, no JavaScript eval, no wildcards");
   assert.ok(csp.startsWith(CSP_META), 'meta CSP and header CSP drifted apart');
   assert.equal(headers['Referrer-Policy'], 'no-referrer');
 });
@@ -114,13 +114,16 @@ test('the first screen (page, styles, script) downloads under 30 KB, so 1930 pai
 });
 
 // The whole offline copy is fetched in the background after the first screen. This budget was raised
-// from about 80 KB to 110 KB compressed when the report maker (three languages) joined the offline copy.
-test('the whole offline copy downloads under 110 KB', async () => {
+// from about 80 KB to 110 KB compressed when the report maker (three languages) joined the offline copy,
+// and to 125 KB for the proof code (ZIP reader, WhatsApp parser, cards), which must work offline.
+// OCR adds nothing here: its engine, language data and glue are runtime-cached, never precached.
+test('the whole offline copy downloads under 125 KB, with no OCR files in it', async () => {
   const sw = await read('sw.js');
   const precache = JSON.parse(sw.match(/const PRECACHE = (\[.*\]);/)[1]);
   let total = await gz('sw.js');
   for (const f of precache) total += await gz(f.endsWith('/') ? `${f}index.html` : f);
-  assert.ok(total < 110 * 1024, `offline copy downloads ${total} bytes`);
+  assert.ok(total < 125 * 1024, `offline copy downloads ${total} bytes`);
+  assert.ok(!precache.some((f) => f.startsWith('/vendor/') || f === '/ocr.js'), 'no OCR file in the precache');
 });
 
 test('every page has exactly one h1, and the 1930 button comes before any notice', async () => {

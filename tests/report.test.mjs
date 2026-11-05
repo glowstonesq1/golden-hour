@@ -20,13 +20,15 @@ test('messages split on blank lines; without them, a new message starts only at 
 });
 
 test('multi-line alerts keep their UTR, date and payee together', () => {
-  const [p] = extractPayments('Sent Rs.500.00\nFrom HDFC Bank A/C *4821\nTo RAMESH KUMAR\nOn 28/10/26\nRef 430212345678\nNot You? Call 18002586161');
+  const [{ source, ...p }] = extractPayments('Sent Rs.500.00\nFrom HDFC Bank A/C *4821\nTo RAMESH KUMAR\nOn 28/10/26\nRef 430212345678\nNot You? Call 18002586161');
   assert.deepEqual(p, { when: '28/10/26', amount: '500.00', mode: '', utr: '430212345678', to: 'RAMESH KUMAR', from: 'XX4821' });
 });
 
 test('a UTR is read only after a reference label, never an account or helpline number', () => {
   const leak = extractPayments('Rs 900 debited from account 123456789012 to x@ybl');
-  assert.ok(!JSON.stringify(leak).includes('123456789012'), 'the full account number appears nowhere');
+  const { source, ...fields } = leak[0];
+  assert.ok(!JSON.stringify(fields).includes('123456789012'), 'the full account number is in no extracted field');
+  assert.equal(source, 'Rs 900 debited from account 123456789012 to x@ybl', 'source is the person\'s own message, shown only beside the values');
   assert.equal(extractPayments('Rs.250 paid from a/c 918765432101. UPI Ref: 430212345678')[0].utr, '430212345678');
   assert.equal(extractPayments('Rs 500 debited. Call 919951860002 if not you. UPI Ref 430212345678')[0].utr, '430212345678');
 });
@@ -40,7 +42,7 @@ test('the amount lost is the debit, never the balance; bare and Dr. debits count
 });
 
 test('payments: debits only, every value copied word for word, own account masked', () => {
-  const p = extractPayments(SMS);
+  const p = extractPayments(SMS).map(({ source, ...row }) => row);
   assert.equal(p.length, 2, 'the credit is left out');
   assert.deepEqual(p[0], { when: '28-Oct-26', amount: '12,000.00', mode: '', utr: '482910384756', to: 'Ramesh Kumar', from: 'XX4821' });
   assert.deepEqual(p[1], { when: '28-Oct-26', amount: '1,499.50', mode: 'UPI', utr: '773829104857', to: 'refund221@ybl', from: 'XX4821' });
