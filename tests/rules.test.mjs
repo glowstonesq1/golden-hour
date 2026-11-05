@@ -42,7 +42,7 @@ test('asking for an OTP is a hard sign; a genuine "do not share" OTP is not', ()
 });
 
 test('links: official domains pass, lookalikes, shorteners and .apk files do not', () => {
-  assert.deepEqual(findLinks('Track: https://amzn.in/d/abc, pay rk12@okaxis or mail a@b.com'), [{ host: 'amzn.in', path: '/d/abc', userinfo: false, scheme: 'https', rawPath: '/d/abc' }]);
+  assert.deepEqual(findLinks('Track: https://amzn.in/d/abc, pay rk12@okaxis or mail a@b.com'), [{ host: 'amzn.in', path: '/d/abc', userinfo: false, scheme: 'https', rawPath: '/d/abc', rawHost: 'amzn.in' }]);
   assert.deepEqual(findLinks('KYC:https://onlinesbi.sbi@evil.xyz/a?x=b@c').map((l) => [l.host, l.userinfo]), [['evil.xyz', true]]);
   assert.equal(check('Track your order: https://amzn.in/d/xyz').verdict, 'none');
   assert.equal(check('Login at https://www.onlinesbi.sbi or https://sbi.bank.in').verdict, 'none');
@@ -117,6 +117,8 @@ test('firstLink: scheme, host and path with its case; never the query, fragment 
   assert.equal(firstLink('visit fake-sbi.top/Login'), 'http://fake-sbi.top/Login');
   assert.equal(firstLink('Update KYC:https://sbi-kyc.example/a'), 'https://sbi-kyc.example/a');
   assert.equal(firstLink('no link here'), '');
+  assert.equal(firstLink('go to www.evil-kyc.xyz/login'), 'http://www.evil-kyc.xyz/login', 'www. kept: the checked address is the one in the message');
+  assert.equal(firstLink('pay at http://evil.xyz:8080/pay'), 'http://evil.xyz:8080/pay', 'port kept');
 });
 
 test('combine: cloud signals only raise the verdict, and at most three reasons are given', () => {

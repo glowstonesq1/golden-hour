@@ -1,7 +1,7 @@
 // The link checker's request handler. Every outside dependency (fetch, the browser, the limits store,
 // the clock) comes in through `deps`, so tests run it with stubs; index.js passes the real ones.
 // It never logs the URL it checks.
-import { stripUrl, followChain, assertPublicHost, Blocked } from './guard.js';
+import { stripUrl, followChain, assertPublicHost, Blocked, PORTS, v6parts } from './guard.js';
 import { formSignals, domainAgeDays, registrable, YOUNG_DAYS } from './signals.js';
 
 const json = (status, body, origin) => new Response(JSON.stringify(body), {
@@ -20,24 +20,41 @@ async function sha256(text) {
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Limits: per visitor (a salted daily hash of the IP, never the IP itself) and a global daily budget of
-// browser seconds that keeps the Workers free plan's browser time. KV is eventually consistent, so the
-// limits are approximate; the browser budget is checked before every launch.
+// Limits: per visitor (a salted daily hash of the IP, never the IP itself; IPv6 per /64, since one
+// connection usually holds a whole /64) and a global daily budget of browser seconds that keeps the free
+// plan's browser time. KV is eventually consistent and not atomic, so parallel requests can slip past
+// both limits; the Rate Limiting binding or a Durable Object would make them exact (worker/README.md).
+const visitor = (ip) => {
+  const p = ip.includes(':') ? v6parts(ip) : null;
+  return p ? p.slice(0, 4).map((x) => x.toString(16)).join(':') : ip;
+};
+async function kvGet(deps, key) {
+  try {
+    return Number((await deps.kv.get(key)) || 0);
+  } catch {
+    return Infinity; // the store cannot be read: refuse rather than run without limits
+  }
+}
+async function kvPut(deps, key, value) {
+  try {
+    await deps.kv.put(key, String(Math.max(0, Math.ceil(value))), { expirationTtl: 172800 });
+  } catch {
+    // KV allows one write per second per key; a lost increment only loosens an approximate limit
+  }
+}
 async function overLimit(env, deps, ip) {
   const today = day(deps.now());
-  const key = `ip:${await sha256(`${env.SALT || ''}:${today}:${ip}`)}`;
-  const used = Number((await deps.kv.get(key)) || 0);
+  const key = `ip:${await sha256(`${env.SALT || ''}:${today}:${visitor(ip)}`)}`;
+  const used = await kvGet(deps, key);
   if (used >= Number(env.PER_IP_DAILY || 10)) return true;
-  const seconds = Number((await deps.kv.get(`browser:${today}`)) || 0);
-  if (seconds >= Number(env.DAILY_BROWSER_SECONDS || 540)) return true;
-  await deps.kv.put(key, String(used + 1), { expirationTtl: 172800 });
+  if ((await kvGet(deps, `browser:${today}`)) >= Number(env.DAILY_BROWSER_SECONDS || 540)) return true;
+  await kvPut(deps, key, used + 1);
   return false;
 }
-async function spend(env, deps, seconds) {
+const spend = async (deps, seconds) => {
   const k = `browser:${day(deps.now())}`;
-  const used = Number((await deps.kv.get(k)) || 0);
-  await deps.kv.put(k, String(Math.ceil(used + seconds)), { expirationTtl: 172800 });
-}
+  await kvPut(deps, k, (await kvGet(deps, k)) + seconds);
+};
 
 export async function handle(request, env, deps) {
   const origin = request.headers.get('origin') || '';
@@ -60,9 +77,16 @@ export async function handle(request, env, deps) {
   }
   if (await overLimit(env, deps, request.headers.get('cf-connecting-ip') || '')) return json(429, { error: 'try later' }, allowed);
 
+  // One DNS check per host per request: redirect hops and page requests share it.
+  const hosts = new Map();
+  const checkHost = (h) => {
+    if (!hosts.has(h)) hosts.set(h, assertPublicHost(h, deps.fetch));
+    return hosts.get(h);
+  };
+
   let chain;
   try {
-    chain = await followChain(url, { fetchFn: deps.fetch, dnsFetch: deps.fetch });
+    chain = await followChain(url, { fetchFn: deps.fetch, dnsFetch: deps.fetch, checkHost });
   } catch (err) {
     return json(err instanceof Blocked ? 403 : 502, { error: err instanceof Blocked ? 'blocked' : 'unreachable' }, allowed);
   }
@@ -75,7 +99,7 @@ export async function handle(request, env, deps) {
   const site = registrable(new URL(chain.final).hostname);
   let ageDays = null;
   try {
-    const res = await deps.fetch(`https://rdap.org/domain/${encodeURIComponent(site)}`, { headers: { accept: 'application/rdap+json' } });
+    const res = await deps.fetch(`https://rdap.org/domain/${encodeURIComponent(site)}`, { headers: { accept: 'application/rdap+json' }, signal: AbortSignal.timeout(5000) });
     if (res.ok) ageDays = domainAgeDays(await res.json(), deps.now());
   } catch {
     // RDAP is optional
@@ -86,20 +110,29 @@ export async function handle(request, env, deps) {
   let screenshot = null;
   let finalUrl = chain.final;
   if (chain.html) {
+    // The browser time is reserved before launch and the unused part refunded after, so a page that hangs
+    // is still charged; a hard deadline stops waiting for it.
+    const reserve = Number(env.BROWSE_SECONDS || 20);
+    await spend(deps, reserve);
     const started = deps.now();
+    let timer;
     try {
-      const page = await deps.browse(chain.final, async (requestUrl) => {
-        // Every request the page makes (redirects, scripts, images) is checked the same way.
-        const u = new URL(requestUrl);
-        if (!['http:', 'https:', 'data:'].includes(u.protocol)) return false;
-        if (u.protocol === 'data:') return true;
-        try {
-          await assertPublicHost(u.hostname, deps.fetch);
-          return true;
-        } catch {
-          return false;
-        }
-      });
+      const page = await Promise.race([
+        deps.browse(chain.final, async (requestUrl) => {
+          // Every HTTP request the page makes (redirects, frames, scripts, images) is checked the same way;
+          // index.js switches off the connections interception cannot see (WebSocket, WebRTC, workers).
+          const u = new URL(requestUrl);
+          if (u.protocol === 'data:' || u.protocol === 'blob:') return true;
+          if (!['http:', 'https:'].includes(u.protocol) || !PORTS.has(u.port)) return false;
+          try {
+            await checkHost(u.hostname);
+            return true;
+          } catch {
+            return false;
+          }
+        }),
+        new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('page took too long')), reserve * 1000); }),
+      ]);
       screenshot = page.screenshot;
       finalUrl = page.url || finalUrl;
       for (const s of formSignals(page.forms, finalUrl)) if (!signals.includes(s)) signals.push(s);
@@ -107,7 +140,8 @@ export async function handle(request, env, deps) {
     } catch {
       // The redirect chain and domain facts still help even when the page will not render.
     } finally {
-      await spend(env, deps, (deps.now() - started) / 1000);
+      clearTimeout(timer);
+      await spend(deps, Math.min(0, (deps.now() - started) / 1000 - reserve)); // refund what was not used
     }
   }
 

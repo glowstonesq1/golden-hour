@@ -52,7 +52,7 @@ export function findLinks(text) {
     const host = (hostPort.startsWith('[') ? hostPort.slice(0, hostPort.indexOf(']') + 1) : hostPort.split(':')[0])
       .toLowerCase().replace(/^www\./, '').replace(/\.$/, '');
     const rawPath = rest.slice(authority.length).split(/[?#]/)[0];
-    return { host, path: rawPath.toLowerCase(), userinfo: at >= 0, scheme, rawPath };
+    return { host, path: rawPath.toLowerCase(), userinfo: at >= 0, scheme, rawPath, rawHost: hostPort.toLowerCase() };
   }).filter((l) => l.host.includes('.') || /^\[[0-9a-f:.]+\]$/.test(l.host));
 }
 
@@ -200,7 +200,7 @@ const score = (text, patterns) =>
 // scam sites answer more often; a real site upgrades to https itself.
 export function firstLink(text) {
   const l = findLinks(String(text ?? '').slice(0, MAX_CHARS)).find((x) => !x.userinfo);
-  return l ? `${l.scheme || 'http'}://${l.host}${l.rawPath || '/'}` : '';
+  return l ? `${l.scheme || 'http'}://${l.rawHost}${l.rawPath || '/'}` : ''; // host as written: www. and port kept
 }
 
 // Signals from the cloud check, combined with the on-device result. They can only raise the verdict:

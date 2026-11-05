@@ -1,8 +1,9 @@
 // SSRF guard for the link checker: which URLs may be fetched, and which addresses they may reach.
 // Pure functions; DNS and fetch are passed in, so tests run without a network.
 
-const PORTS = new Set(['', '80', '443', '8080', '8443']);
+export const PORTS = new Set(['', '80', '443', '8080', '8443']);
 export const MAX_HOPS = 10;
+const TIMEOUT_MS = 5000; // every DNS, redirect and RDAP call gives up after this
 
 export class Blocked extends Error {}
 
@@ -80,7 +81,7 @@ export async function resolveHost(host, fetchFn, doh = 'https://cloudflare-dns.c
   if (isV4(name) || v6parts(name)) return [name];
   const answers = [];
   for (const type of ['A', 'AAAA']) {
-    const res = await fetchFn(`${doh}?name=${encodeURIComponent(name)}&type=${type}`, { headers: { accept: 'application/dns-json' } });
+    const res = await fetchFn(`${doh}?name=${encodeURIComponent(name)}&type=${type}`, { headers: { accept: 'application/dns-json' }, signal: AbortSignal.timeout(TIMEOUT_MS) });
     if (!res.ok) throw new Error('DNS lookup failed');
     const data = await res.json();
     for (const a of data.Answer || []) if (a.type === 1 || a.type === 28) answers.push(String(a.data));
@@ -98,16 +99,16 @@ export async function assertPublicHost(host, fetchFn) {
 
 // ---------- Redirects ----------
 // Follows redirects by hand, re-checking every hop, without downloading bodies. Stops at an app file or download.
-export async function followChain(start, { fetchFn, dnsFetch = fetchFn, maxHops = MAX_HOPS }) {
+export async function followChain(start, { fetchFn, dnsFetch = fetchFn, maxHops = MAX_HOPS, checkHost = (h) => assertPublicHost(h, dnsFetch) }) {
   const chain = [];
   let url = start;
   for (let hop = 0; hop <= maxHops; hop++) {
     const u = new URL(url);
     if (!['http:', 'https:'].includes(u.protocol)) throw new Blocked('redirect to a non-web address');
     if (u.username || u.password || !PORTS.has(u.port)) throw new Blocked('redirect to a disallowed address');
-    await assertPublicHost(u.hostname, dnsFetch);
+    await checkHost(u.hostname);
     chain.push(url);
-    const res = await fetchFn(url, { redirect: 'manual', method: 'GET', headers: { 'user-agent': 'Mozilla/5.0 (Linux; Android 14) GoldenHourLinkCheck' } });
+    const res = await fetchFn(url, { redirect: 'manual', method: 'GET', headers: { 'user-agent': 'Mozilla/5.0 (Linux; Android 14) GoldenHourLinkCheck' }, signal: AbortSignal.timeout(TIMEOUT_MS) });
     const location = res.headers.get('location');
     if (res.status >= 300 && res.status < 400 && location) {
       await res.body?.cancel?.();

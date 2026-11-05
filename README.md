@@ -62,7 +62,7 @@ node eval/ocr.mjs http://127.0.0.1:8080
 
 ## The optional link checker
 
-`worker/` is a Cloudflare Worker (free plan, Browser Rendering) that follows a link's redirects with an SSRF guard on every hop, opens the final page in a browser far from the phone, and returns a screenshot and signals: a form asking for an OTP, UPI PIN, card or CVV, or Aadhaar; a password field posting to another site; an app download; the domain's age. It has per-visitor and daily browser-time limits and keeps no logs (Cloudflare's own platform records still apply). Deploy steps, including the one constant and the CSP header to update in this repository, are in [worker/README.md](worker/README.md). Until it is deployed the Check screen does not offer it, and if it is down or over its cap the app says so and keeps the phone's result.
+`worker/` is a Cloudflare Worker (free plan, Browser Rendering) that follows a link's redirects with an SSRF guard on every hop, opens the final page in a browser far from the phone, and returns a screenshot and signals: a form asking for an OTP, UPI PIN, card or CVV, or Aadhaar; a password field posting to another site; an app download; the domain's age. It has per-visitor and daily browser-time limits (approximate, see its README) and keeps no logs (Cloudflare's own platform records still apply). Its known gaps (DNS rebinding, limits that parallel requests can slip past, an origin check that only stops browsers) are listed there. Deploy steps, including the one constant and the CSP header to update in this repository, are in [worker/README.md](worker/README.md). Until it is deployed the Check screen does not offer it, and if it is down or over its cap the app says so and keeps the phone's result.
 
 ## How well it works
 

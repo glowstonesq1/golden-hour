@@ -184,3 +184,41 @@ test('handler: when the page will not render, the redirect chain and domain fact
   assert.equal(body.screenshot, null);
   assert.ok(body.signals.includes('youngDomain'));
 });
+
+test('limits: IPv6 visitors are counted per /64, so a new address in the same block does not reset them', async () => {
+  const d = deps();
+  const ok1 = await handle(post({ url: 'https://scam.example/kyc' }, undefined, '2401:4900:1c2a:5b00::1'), ENV, d.deps);
+  const ok2 = await handle(post({ url: 'https://scam.example/kyc' }, undefined, '2401:4900:1c2a:5b00::2'), ENV, d.deps);
+  const third = await handle(post({ url: 'https://scam.example/kyc' }, undefined, '2401:4900:1c2a:5b00:ffff::9'), ENV, d.deps);
+  assert.deepEqual([ok1.status, ok2.status, third.status], [200, 200, 429]);
+  const other = await handle(post({ url: 'https://scam.example/kyc' }, undefined, '2401:4900:1c2a:5b01::1'), ENV, d.deps);
+  assert.equal(other.status, 200, 'another /64 is another visitor');
+});
+
+test('a page that hangs is cut off and still charged to the daily browser budget', async () => {
+  const d = deps({ browse: () => new Promise(() => {}) });
+  const env = { ...ENV, BROWSE_SECONDS: '1', DAILY_BROWSER_SECONDS: '100' };
+  const res = await handle(post({ url: 'https://scam.example/kyc' }), env, d.deps);
+  assert.equal(res.status, 200, 'the chain and domain facts still come back');
+  assert.equal((await res.json()).screenshot, null);
+  assert.ok(Number(await d.deps.kv.get('browser:2026-11-05')) >= 1, 'the reserved second was charged');
+});
+
+test('page requests: only http(s) on the allowed ports, and one DNS check per host', async () => {
+  const d = deps();
+  let flags;
+  d.deps.browse = async (url, allow) => {
+    flags = await Promise.all(['https://scam.example:6379/', 'ws://scam.example/', 'https://scam.example/a.js', 'https://scam.example/b.js', 'data:image/png;base64,AA'].map(allow));
+    return { url, forms: [], screenshot: null };
+  };
+  await handle(post({ url: 'https://scam.example/kyc' }), ENV, d.deps);
+  assert.deepEqual(flags, [false, false, true, true, true]);
+  assert.equal(d.seen.filter((u) => u.includes('cloudflare-dns.com') && u.includes('scam.example')).length, 2, 'A and AAAA once, shared by the chain and every page request');
+});
+
+test('a KV store that fails refuses checks rather than crashing or running without limits', async () => {
+  const d = deps();
+  d.deps.kv = { get: async () => { throw new Error('kv down'); }, put: async () => { throw new Error('kv down'); } };
+  assert.equal((await handle(post({ url: 'https://scam.example/kyc' }), ENV, d.deps)).status, 429);
+});
+

@@ -23,6 +23,23 @@ async function browse(env, url, allow) {
   try {
     const page = await browser.newPage();
     await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 1 });
+    // Request interception sees HTTP requests only. Connections it cannot see are switched off before any
+    // page script runs: WebSocket, WebRTC, WebTransport and workers (service, shared, dedicated).
+    await page.setBypassServiceWorker(true).catch(() => {});
+    await page.evaluateOnNewDocument(() => {
+      for (const name of ['WebSocket', 'RTCPeerConnection', 'webkitRTCPeerConnection', 'WebTransport', 'Worker', 'SharedWorker']) {
+        try {
+          Object.defineProperty(window, name, { value: undefined, configurable: false });
+        } catch {
+          // already gone
+        }
+      }
+      try {
+        if (navigator.serviceWorker) navigator.serviceWorker.register = () => Promise.reject(new Error('disabled'));
+      } catch {
+        // not available
+      }
+    });
     const cdp = await page.target().createCDPSession();
     await cdp.send('Browser.setDownloadBehavior', { behavior: 'deny' }).catch(() => {});
     let navigations = 0;
