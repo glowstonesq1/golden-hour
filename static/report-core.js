@@ -104,47 +104,24 @@ export function extractContacts(text, ownMobile = '') {
   return [...new Set(found.map((x) => x.trim()))].filter((x) => x && verbatim(x, src));
 }
 
-// Numbers, IDs, links and amount words in an AI summary that are not in the person's own text. Any hit
-// means the summary invented a detail, so the page throws it away. Whole tokens are compared, so
-// "Rs 1,000" does not pass because the source says "Rs 10,000". Plain words cannot be checked this way.
-const SCALE = /\b(lakhs?|lacs?|crores?|thousands?|hundreds?|millions?|billions?)\b|लाख|करोड़|करोड|हज़ार|हजार|कोटी/gi;
-const ID_RE = /[\w.+-]+@[\w.-]*\w/g;
-function detailTokens(text) {
-  const t = norm(text).toLowerCase();
-  const ids = [...(t.match(ID_RE) || []), ...findLinks(t).map((l) => `${l.host}${l.path}`.replace(/\/$/, ''))];
-  const rest = t.replace(ID_RE, ' ').replace(/(?:https?:\/\/|www\.)\S+/g, ' ');
-  const numbers = (rest.match(/\d[\d,]*(?:\.\d+)?/g) || []).map((n) => String(Number(n.replace(/,/g, ''))));
-  return { ids, numbers, scales: (t.match(SCALE) || []).map((w) => w.replace(/s$/, '')) };
-}
-export function unsupportedDetails(summary, source) {
-  const src = detailTokens(source);
-  const sum = detailTokens(summary);
-  return [
-    ...sum.ids.filter((x) => !src.ids.includes(x)),
-    ...sum.numbers.filter((x) => !src.numbers.includes(x)),
-    ...sum.scales.filter((x) => !src.scales.includes(x)),
-  ];
-}
-
 const fill = (s, vars) => String(s).replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? '');
 
 // The complaint as a plain structure, rendered both as the on-screen letter and as copyable text.
 export function buildReport(d, t) {
   const blank = t.blank;
   const v = (x) => norm(x) || blank;
-  const total = totalLost(d.payments);
+  const total = d.total ?? totalLost(d.payments); // a saved case may know the total but not each payment
   const sections = [
     { title: t.s1, rows: [[t.f.name, v(d.name)], [t.f.mobile, v(d.mobile)], [t.f.email, v(d.email)], [t.f.address, v(d.address)], [t.f.bank, v(d.bank)]] },
     { title: t.s2, quote: norm(d.story) || blank },
   ];
-  if (norm(d.summary)) sections.push({ title: t.s2ai, paras: [norm(d.summary)] });
   sections.push({
     title: t.s3,
     table: {
       head: [t.col.when, t.col.amount, t.col.mode, t.col.utr, t.col.to, t.col.from],
       rows: d.payments.map((p) => [p.when, p.amount && `Rs ${p.amount}`, p.mode, p.utr, p.to, p.from].map((x) => norm(x) || '-')),
     },
-    paras: d.payments.length ? [fill(t.total, { amount: formatRs(total) })] : [t.noPaymentsDoc],
+    paras: total ? [fill(t.total, { amount: formatRs(total) })] : [t.noPaymentsDoc],
   });
   sections.push({
     title: t.s4,

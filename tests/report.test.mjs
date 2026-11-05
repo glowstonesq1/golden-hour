@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import {
-  splitMessages, extractPayments, extractContacts, unsupportedDetails, verbatim, totalLost, formatRs, buildReport, reportText,
+  splitMessages, extractPayments, extractContacts, verbatim, totalLost, formatRs, buildReport, reportText,
 } from '../static/report-core.js';
 
 const SMS = [
@@ -66,22 +66,6 @@ test('contacts: scammer numbers, UPI IDs, emails and links, not the person\'s ow
   assert.deepEqual(extractContacts('pay to refund221@ybl.Then he left. my upi 9123456780@ybl', '9123456780'), ['refund221@ybl']);
 });
 
-test('AI summary verifier rejects any number, ID or link the person never gave', () => {
-  const source = `${SMS}\nHe called from 9876543210 on 27 October.`;
-  assert.deepEqual(unsupportedDetails('They took Rs 12000 and Rs 1,499.50 via refund221@ybl after calling from 9876543210 on 27 October.', source), []);
-  assert.deepEqual(unsupportedDetails('They took Rs 15,000.', source), ['15000']);
-  assert.deepEqual(unsupportedDetails('Paid to helpdesk@paytm via https://evil.example/x', source), ['helpdesk@paytm', 'evil.example/x']);
-  assert.deepEqual(unsupportedDetails('No numbers here.', source), []);
-  // Whole tokens, not substrings: none of these may slip through.
-  const src2 = 'Rs 10,000 sent, UTR 430212345678, to fraud@ybl.com, link sbi-kyc.com/x, Rs 50';
-  assert.deepEqual(unsupportedDetails('Rs 1,000 lost', src2), ['1000']);
-  assert.deepEqual(unsupportedDetails('ref 0212345678', src2), ['212345678']);
-  assert.deepEqual(unsupportedDetails('paid fraud@ybl', src2), ['fraud@ybl']);
-  assert.deepEqual(unsupportedDetails('Rs 50 lakh', src2), ['lakh']);
-  assert.deepEqual(unsupportedDetails('visit evil-kyc.com', src2), ['evil-kyc.com']);
-  assert.deepEqual(unsupportedDetails('Rs 10000 sent to fraud@ybl.com via sbi-kyc.com/x, UTR 430212345678', src2), []);
-});
-
 test('total is computed in code from the payment amounts', () => {
   const total = totalLost(extractPayments(SMS));
   assert.equal(total, 13499.5);
@@ -93,13 +77,12 @@ test('the letter has every part, blanks to fill by hand, and the right request f
   const t = JSON.parse(await readFile(new URL('../src/strings/en.json', import.meta.url), 'utf8')).report.doc;
   const d = {
     recipient: 'police', name: 'Sunita Deshpande', mobile: '9123456780', email: '', address: 'Pune', bank: 'SBI', ack: '',
-    firstContact: '', channel: 'Phone call', typeName: 'KYC update or account block', story: 'He called me.', summary: '',
+    firstContact: '', channel: 'Phone call', typeName: 'KYC update or account block', story: 'He called me.',
     payments: extractPayments(SMS), contacts: ['9876543210'], date: '29 October 2026',
   };
   const r = buildReport(d, t);
   assert.equal(r.subject, 'Subject: Complaint of online financial fraud of Rs 13,499.50');
   assert.equal(r.sections.length, 6);
-  assert.ok(!r.sections.some((s) => s.title === t.s2ai), 'no AI section without a confirmed summary');
   const text = reportText(r);
   for (const want of ['To,', 'Respected Sir or Madam,', '"He called me."', '482910384756', 'refund221@ybl', 'Total amount lost: Rs 13,499.50',
     'Email: ________', t.requestPolice, '[ ] Screenshots of the transactions', t.declaration, t.footer]) {
@@ -107,16 +90,17 @@ test('the letter has every part, blanks to fill by hand, and the right request f
   }
   assert.ok(!text.includes('1930 helpline'), 'no 1930 line without a complaint number');
 
-  const bank = reportText(buildReport({ ...d, recipient: 'bank', ack: '3191', summary: 'A short summary.', payments: [] }, t));
+  const bank = reportText(buildReport({ ...d, recipient: 'bank', ack: '3191', payments: [] }, t));
   assert.ok(bank.includes(`${t.toBank}, SBI`) && bank.includes(t.requestBank) && bank.includes('Complaint number: 3191.'));
-  assert.ok(bank.includes(t.s2ai) && bank.includes(t.noPaymentsDoc) && bank.includes(t.subjectNoAmount));
+  assert.ok(bank.includes(t.noPaymentsDoc) && bank.includes(t.subjectNoAmount));
+  const saved = reportText(buildReport({ ...d, payments: [{ utr: '482910384756' }], total: 13499.5 }, t));
+  assert.ok(saved.includes('Total amount lost: Rs 13,499.50'), 'a saved total is used when payments carry no amounts');
 });
 
 test('every language has the strings the report script and letter use', async () => {
   for (const lang of ['en', 'hi', 'mr']) {
     const r = JSON.parse(await readFile(new URL(`../src/strings/${lang}.json`, import.meta.url), 'utf8')).report;
-    for (const k of ['consentTitle', 'consentBody', 'consentYes', 'consentNo', 'aiRejected', 'needStory']) assert.ok(r[k], `${lang}: ${k}`);
+    for (const k of ['consentTitle', 'consentBody', 'consentYes', 'consentNo', 'needStory']) assert.ok(r[k], `${lang}: ${k}`);
     for (const k of ['to', 'subject', 'intro', 'requestPolice', 'requestBank', 'declaration', 'footer']) assert.ok(r.doc[k], `${lang}: doc.${k}`);
-    assert.equal(r.next.length, 5, `${lang}: five next steps`);
   }
 });

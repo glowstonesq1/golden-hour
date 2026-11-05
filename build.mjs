@@ -9,7 +9,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const ROOT = dirname(fileURLToPath(import.meta.url));
 export const SOURCE_URL = 'https://github.com/glowstonesq1/golden-hour';
 export const LANGS = { en: '/', hi: '/hi/', mr: '/mr/' };
-export const PAGES = ['', 'help/', 'check/', 'report/', 'terms/', 'privacy/'];
+export const PAGES = ['', 'help/', 'check/', 'report/', 'case/', 'terms/', 'privacy/'];
 
 // Content-Security-Policy shared by vercel.json (header) and the meta tag (for hosts without headers).
 // frame-ancestors only works as a header, so the meta copy leaves it out.
@@ -57,145 +57,171 @@ const door = (href, ic, title, sub) => `
 const field = (id, label, type = 'text', extra = '') =>
   `<div class="field"><label for="${id}">${esc(label)}</label><input id="${id}" type="${type}" ${extra}></div>`;
 
-function reportPage(s, p) {
+// Only what report.js writes at run time; everything else is already in the markup.
+function journeyStrings(s) {
   const r = s.report;
+  const h = s.help;
+  const pick = (o, keys) => Object.fromEntries(keys.map((k) => [k, o[k]]));
+  return {
+    ...pick(r, ['mic', 'micStop', 'micListening', 'micLocal', 'micDownloading', 'micDenied', 'micNetwork', 'micError',
+      'consentTitle', 'consentBody', 'consentYes', 'consentNo', 'needStory', 'noPayments', 'removePayment', 'paymentN',
+      'copied', 'copyFail', 'doc']),
+    ...pick(h, ['ready', 'readAloud', 'ackSaved', 'ackInvalid', 'done', 'undone', 'caseSaved', 'caseCleared']),
+    steps: Object.fromEntries(h.steps.map((st) => [st.id, st.title])),
+  };
+}
+
+function stepExtra(s, p, id) {
+  const r = s.report;
+  const h = s.help;
+  if (id === 'call') {
+    return `
+        <div class="js-only" hidden>
+          <section class="ready" aria-labelledby="ready-title">
+            <h3 id="ready-title">${esc(h.readyTitle)}</h3>
+            <p id="ready-empty" class="hint">${esc(h.readyEmpty)}</p>
+            <dl id="ready-list"></dl>
+            <button type="button" id="read-aloud" class="secondary" hidden>${esc(h.readAloud)}</button>
+          </section>
+          <label for="ack">${esc(h.ackLabel)}</label>
+          <div class="inline-field"><input id="ack" type="text" inputmode="numeric" autocomplete="off" maxlength="14" spellcheck="false">
+          <button type="button" id="ack-save" class="secondary">${esc(h.ackSave)}</button></div>
+          <p id="ack-status" class="status" role="status" aria-live="polite"></p>
+        </div>`;
+  }
+  if (id === 'proof') {
+    return `
+        <div class="js-only" hidden>
+          <label for="sms">${esc(r.smsLabel)}</label>
+          <p class="hint" id="sms-hint">${esc(r.smsHint)}</p>
+          <textarea id="sms" rows="5" aria-describedby="sms-hint" spellcheck="false"></textarea>
+          ${field('bank', r.bank, 'text', 'autocomplete="off"')}
+          <button type="button" id="find" class="primary">${esc(h.find)}</button>
+          <section id="review" class="review reveal" hidden aria-labelledby="review-title">
+            <h3 id="review-title" tabindex="-1">${esc(r.checkTitle)}</h3>
+            <p class="hint">${esc(r.checkHint)}</p>
+            <div id="payments"></div>
+            <button type="button" id="add-payment" class="secondary">${esc(r.addPayment)}</button>
+            <button type="button" id="save-case" class="primary">${esc(h.saveCase)}</button>
+            <p id="save-status" class="status" role="status" aria-live="polite"></p>
+          </section>
+        </div>`;
+  }
+  if (id === 'portal') return `\n        <p class="portal">${ext(h.portalLink, 'cybercrime.gov.in')}</p>`;
+  return '';
+}
+
+function journeyPage(s, p) {
+  const r = s.report;
+  const h = s.help;
   const types = Object.entries(s.check.types).filter(([k]) => k !== 'unknown').map(([k, v]) => `<option value="${k}">${esc(v.name)}</option>`).join('');
   const channels = Object.entries(r.channels).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join('');
   const recipients = Object.entries(r.recipients)
     .map(([k, v], i) => `<label class="choice"><input type="radio" name="recipient" value="${k}"${i ? '' : ' checked'}> <span>${esc(v)}</span></label>`).join('');
-  const next = r.next.map((st) => `
-        <li>
-          <h3>${esc(st.title)}</h3>
-          <p>${esc(st.body)}</p>${st.source ? `\n          <p class="src">${ext(st.source, s.sourceLabel)}</p>` : ''}
-        </li>`).join('');
-  // Only what report.js writes at run time; everything else is already in the markup.
-  const pick = (keys) => Object.fromEntries(keys.map((k) => [k, r[k]]));
-  const strings = {
-    ...pick(['mic', 'micStop', 'micListening', 'micLocal', 'micDownloading', 'micDenied', 'micNetwork', 'micError',
-      'consentTitle', 'consentBody', 'consentYes', 'consentNo', 'needStory', 'noPayments', 'removePayment', 'paymentN',
-      'aiWorking', 'aiDownloading', 'aiRejected', 'aiFailed', 'copied', 'copyFail', 'cleared', 'doc']),
-  };
+  const steps = h.steps.map((st) => `
+      <li id="step-${st.id}" class="jstep" data-step="${st.id}">
+        <h2>${esc(st.title)}</h2>
+        <p>${esc(st.body)}</p>${st.source ? `\n        <p class="src">${ext(st.source, s.sourceLabel)}</p>` : ''}${stepExtra(s, p, st.id)}
+        <button type="button" class="done-btn" data-done="${st.id}" aria-pressed="false" hidden>${esc(h.done)}</button>
+      </li>`).join('');
   return `${callButton(s)}
-    <h1>${esc(r.title)}</h1>
-    <p class="lead">${esc(r.lead)}</p>
-    <p class="nojs" id="nojs">${esc(r.noJs)}</p>
-    <form id="report-form" class="report-form" hidden novalidate>
-      <fieldset>
-        <legend>${esc(r.storyTitle)}</legend>
-        <label for="story">${esc(r.storyLabel)}</label>
-        <p class="hint" id="story-hint">${esc(r.storyHint)}</p>
-        <textarea id="story" rows="8" aria-describedby="story-hint" spellcheck="false"></textarea>
-        <div class="mic-row">
-          <button type="button" id="mic" class="mic" hidden aria-pressed="false">${icon('mic')}<span id="mic-label">${esc(r.mic)}</span></button>
-          <p id="mic-status" class="hint" role="status" aria-live="polite">${esc(r.micKeyboard)}</p>
+    <h1>${esc(h.title)}</h1>
+    <p class="lead">${esc(h.lead)}</p>
+    <ol class="steps journey" role="list">${steps}
+    </ol>
+    <section id="letter" class="letter" aria-labelledby="letter-title">
+      <h2 id="letter-title">${esc(h.letterTitle)}</h2>
+      <p class="hint">${esc(h.letterBody)}</p>
+      <p class="nojs" id="nojs">${esc(r.noJs)}</p>
+      <form id="report-form" class="report-form" hidden novalidate>
+        <fieldset>
+          <legend>${esc(r.storyTitle)}</legend>
+          <label for="story">${esc(r.storyLabel)}</label>
+          <p class="hint" id="story-hint">${esc(r.storyHint)}</p>
+          <textarea id="story" rows="8" aria-describedby="story-hint" spellcheck="false"></textarea>
+          <div class="mic-row">
+            <button type="button" id="mic" class="mic" hidden aria-pressed="false">${icon('mic')}<span id="mic-label">${esc(r.mic)}</span></button>
+            <p id="mic-status" class="hint" role="status" aria-live="polite">${esc(r.micKeyboard)}</p>
+          </div>
+          <p id="mic-interim" class="hint interim"></p>
+        </fieldset>
+        <fieldset class="grid-2">
+          <legend>${esc(r.youTitle)}</legend>
+          ${field('name', r.name, 'text', 'autocomplete="name"')}
+          ${field('mobile', r.mobile, 'tel', 'autocomplete="tel" inputmode="tel"')}
+          ${field('email', r.email, 'email', 'autocomplete="email"')}
+          ${field('address', r.address, 'text', 'autocomplete="address-level2"')}
+          ${field('first-contact', r.firstContact, 'date')}
+          <div class="field"><label for="channel">${esc(r.channel)}</label><select id="channel"><option value="">${esc(r.channelPick)}</option>${channels}</select></div>
+          <div class="field"><label for="fraud-type">${esc(r.doc.fraudType)}</label><select id="fraud-type"><option value="">${esc(r.channelPick)}</option>${types}</select></div>
+        </fieldset>
+        <div class="field"><label for="contacts">${esc(r.contactsLabel)}</label><textarea id="contacts" rows="3" spellcheck="false"></textarea></div>
+        <fieldset>
+          <legend>${esc(r.recipient)}</legend>
+          <div class="choices">${recipients}</div>
+        </fieldset>
+        <button type="submit" class="primary">${esc(r.make)}</button>
+        <p id="form-status" class="status" role="status" aria-live="polite"></p>
+      </form>
+      <section id="preview" class="preview reveal" hidden aria-labelledby="preview-title">
+        <h3 id="preview-title">${esc(r.previewTitle)}</h3>
+        <article id="doc" class="doc"></article>
+        <div class="actions">
+          <button type="button" id="print" class="primary">${esc(r.print)}</button>
+          <button type="button" id="copy" class="secondary">${esc(r.copy)}</button>
+          <button type="button" id="share" class="secondary">${esc(r.share)}</button>
         </div>
-        <p id="mic-interim" class="hint interim"></p>
-      </fieldset>
-      <fieldset>
-        <legend>${esc(r.smsTitle)}</legend>
-        <label for="sms">${esc(r.smsLabel)}</label>
-        <p class="hint" id="sms-hint">${esc(r.smsHint)}</p>
-        <textarea id="sms" rows="5" aria-describedby="sms-hint" spellcheck="false"></textarea>
-      </fieldset>
-      <fieldset class="grid-2">
-        <legend>${esc(r.youTitle)}</legend>
-        ${field('name', r.name, 'text', 'autocomplete="name"')}
-        ${field('mobile', r.mobile, 'tel', 'autocomplete="tel" inputmode="tel"')}
-        ${field('email', r.email, 'email', 'autocomplete="email"')}
-        ${field('address', r.address, 'text', 'autocomplete="address-level2"')}
-      </fieldset>
-      <fieldset class="grid-2">
-        <legend>${esc(r.incidentTitle)}</legend>
-        ${field('first-contact', r.firstContact, 'date')}
-        <div class="field"><label for="channel">${esc(r.channel)}</label><select id="channel"><option value="">${esc(r.channelPick)}</option>${channels}</select></div>
-        ${field('bank', r.bank)}
-        ${field('ack', r.ack, 'text', 'inputmode="numeric"')}
-      </fieldset>
-      <fieldset>
-        <legend>${esc(r.recipient)}</legend>
-        <div class="choices">${recipients}</div>
-      </fieldset>
-      <button type="submit" class="primary">${esc(r.make)}</button>
-      <p id="form-status" class="status" role="status" aria-live="polite"></p>
-    </form>
-    <section id="review" class="review reveal" hidden aria-labelledby="review-title">
-      <h2 id="review-title" tabindex="-1">${esc(r.checkTitle)}</h2>
-      <p class="hint">${esc(r.checkHint)}</p>
-      <div id="payments"></div>
-      <button type="button" id="add-payment" class="secondary">${esc(r.addPayment)}</button>
-      <div class="field"><label for="fraud-type">${esc(r.doc.fraudType)}</label><select id="fraud-type"><option value="">${esc(r.channelPick)}</option>${types}</select></div>
-      <div class="field"><label for="contacts">${esc(r.contactsLabel)}</label><textarea id="contacts" rows="4" spellcheck="false"></textarea></div>
-      <div id="ai" class="ai" hidden>
-        <button type="button" id="ai-run" class="secondary">${esc(r.aiButton)}</button>
-        <p id="ai-status" class="hint" role="status" aria-live="polite"></p>
-        <div id="ai-result" hidden>
-          <label for="ai-text">${esc(r.aiLabel)}</label>
-          <textarea id="ai-text" rows="5"></textarea>
-          <label class="choice"><input type="checkbox" id="ai-ok"> <span>${esc(r.aiConfirm)}</span></label>
-          <p class="hint">${esc(r.aiNote)}</p>
-        </div>
-      </div>
-    </section>
-    <section id="preview" class="preview reveal" hidden aria-labelledby="preview-title">
-      <h2 id="preview-title">${esc(r.previewTitle)}</h2>
-      <article id="doc" class="doc"></article>
-      <div class="actions">
-        <button type="button" id="print" class="primary">${esc(r.print)}</button>
-        <button type="button" id="copy" class="secondary">${esc(r.copy)}</button>
-        <button type="button" id="share" class="secondary">${esc(r.share)}</button>
-      </div>
-      <p id="doc-status" class="status" role="status" aria-live="polite"></p>
-      <button type="button" id="next-toggle" class="next-toggle" aria-expanded="false" aria-controls="next">${esc(r.nextButton)} ${icon('arrow')}</button>
-      <section id="next" class="next reveal" hidden aria-labelledby="next-title">
-        <h2 id="next-title">${esc(r.nextTitle)}</h2>
-        <ol class="steps" role="list">${next}
-        </ol>
-        <p class="portal">${ext(s.help.portalLink, 'cybercrime.gov.in')}</p>
+        <p id="doc-status" class="status" role="status" aria-live="polite"></p>
       </section>
-      <button type="button" id="clear" class="text-button">${esc(r.clear)}</button>
     </section>
-    <div id="report-strings" hidden data-t="${esc(JSON.stringify(strings))}"></div>`;
+    <aside class="note">
+      <h2>${esc(h.noLossTitle)}</h2>
+      <p>${esc(h.noLossBody)}</p>
+      <p>${ext(h.noLossLink, 'sancharsaathi.gov.in')}</p>
+    </aside>
+    <div class="js-only" hidden>
+      <button type="button" id="clear" class="text-button">${esc(h.clearCase)}</button>
+      <p id="clear-status" class="status" role="status" aria-live="polite"></p>
+    </div>
+    <div id="report-strings" hidden data-t="${esc(JSON.stringify(journeyStrings(s)))}"></div>`;
 }
+
+// Old addresses (report/, case/) are plain pages that forward to the journey, so they work offline,
+// without JavaScript, and still show the 1930 button first.
+const MOVED = { 'report/': 'help/#letter', 'case/': 'help/' };
+const movedPage = (s, p, page) => `${callButton(s)}
+    <h1>${esc(s.moved.title)}</h1>
+    <p>${esc(s.moved.body)}</p>
+    <p><a class="secondary" href="${p}${MOVED[page]}">${esc(s.moved.link)}</a></p>`;
 
 function body(s, lang, page) {
   const p = LANGS[lang];
   if (page === '') {
+    const steps = Object.fromEntries(s.help.steps.map((st) => [st.id, st.title]));
     return `
     <section class="hero">
       <div class="hero-main">${callButton(s)}
         <h1 class="hero-title">${esc(s.home.lead)}</h1>
         <p class="trust">${icon('shield')}<span>${esc(s.home.trust)}</span></p>
+        <div id="install" class="install" hidden>
+          <button type="button" id="install-btn" class="secondary">${esc(s.install.button)}</button>
+          <div id="install-help" class="install-help" hidden>
+            <p>${esc(s.install.ios)}</p>
+            <p>${esc(s.install.other)}</p>
+          </div>
+        </div>
       </div>
-      <div class="doors">${door(`${p}help/`, 'wallet', s.home.helpTitle, s.home.helpSub)}${door(`${p}check/`, 'shield', s.home.checkTitle, s.home.checkSub)}
+      <div class="doors">
+        <a class="door door-primary" href="${p}help/">
+          <span class="door-icon">${icon('wallet')}</span>
+          <span class="door-text"><span class="door-title">${esc(s.home.helpTitle)}</span><span class="door-sub" id="help-sub" data-next="${esc(s.home.helpNext)}" data-steps="${esc(JSON.stringify(steps))}">${esc(s.home.helpSub)}</span></span>
+          ${icon('arrow', 'ico door-arrow')}
+        </a>${door(`${p}check/`, 'shield', s.home.checkTitle, s.home.checkSub)}
       </div>
     </section>`;
   }
-  if (page === 'help/') {
-    const steps = s.help.steps
-      .map((st) => `
-      <li>
-        <h2>${esc(st.title)}</h2>
-        <p>${esc(st.body)}</p>${st.source ? `\n        <p class="src">${ext(st.source, s.sourceLabel)}</p>` : ''}
-      </li>`)
-      .join('');
-    return `${callButton(s)}
-    <h1>${esc(s.help.title)}</h1>
-    <a class="report-card" href="${p}report/">
-      <span class="door-icon">${icon('doc')}</span>
-      <span class="door-text"><span class="door-title">${esc(s.help.reportTitle)}</span><span class="door-sub">${esc(s.help.reportBody)}</span>
-      <span class="report-cta">${esc(s.help.reportButton)} ${icon('arrow')}</span></span>
-    </a>
-    <p class="lead">${esc(s.help.lead)}</p>
-    <ol class="steps" role="list">${steps}
-    </ol>
-    <p class="portal">${ext(s.help.portalLink, 'cybercrime.gov.in')}</p>
-    <aside class="note">
-      <h2>${esc(s.help.noLossTitle)}</h2>
-      <p>${esc(s.help.noLossBody)}</p>
-      <p>${ext(s.help.noLossLink, 'sancharsaathi.gov.in')}</p>
-    </aside>`;
-  }
-  if (page === 'report/') return reportPage(s, p);
+  if (page === 'help/') return journeyPage(s, p);
+  if (MOVED[page]) return movedPage(s, p, page);
   if (page === 'check/') {
     const signs = s.check.signs.map((x) => `<li>${esc(x)}</li>`).join('');
     const labels = { intro: s.check.resultIntro, verdicts: s.check.verdicts, types: s.check.types, signNames: s.check.signNames };
@@ -233,7 +259,7 @@ function body(s, lang, page) {
 
 function title(s, page) {
   if (page === '') return s.home.title;
-  const t = { 'help/': s.help.title, 'check/': s.check.title, 'report/': s.report.title, 'terms/': s.terms.title, 'privacy/': s.privacy.title }[page];
+  const t = { 'help/': s.help.title, 'check/': s.check.title, 'report/': s.moved.title, 'case/': s.moved.title, 'terms/': s.terms.title, 'privacy/': s.privacy.title }[page];
   return `${t} | ${s.siteName}`;
 }
 
@@ -258,7 +284,8 @@ export function renderPage(strings, lang, page) {
   <link rel="manifest" href="${p}manifest.webmanifest">
   <link rel="icon" href="/icons/icon-192.png" type="image/png">
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/style.css">${MOVED[page] ? `
+  <meta http-equiv="refresh" content="0; url=${p}${MOVED[page]}">` : ''}
 </head>
 <body class="page-${page.replace('/', '') || 'home'}">
   <div class="top-wrap"><header class="top">

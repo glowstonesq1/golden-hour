@@ -68,7 +68,13 @@ function loadWorker({ online = true } = {}) {
     handlers.fetch({ request, respondWith: (p) => { response = p; } });
     return response && (await response);
   }
-  return { caches, stores, fetched, lifecycle, dispatch };
+  // A page asking for the pending share, as app.js does on every load.
+  function take() {
+    let reply;
+    handlers.message({ data: { type: 'take-share' }, ports: [{ postMessage: (m) => { reply = m; } }] });
+    return reply?.text;
+  }
+  return { caches, stores, fetched, lifecycle, dispatch, take };
 }
 
 const post = (path, fields, { broken = false } = {}) => ({
@@ -81,7 +87,7 @@ const post = (path, fields, { broken = false } = {}) => ({
   },
 });
 const get = (path, mode = 'navigate') => ({ url: ORIGIN + path, method: 'GET', mode });
-const shared = async (w) => (await (await w.caches.open('gh-share')).match('/__shared__'))?.text();
+const shared = async (w) => w.take();
 
 test('a share to the English app lands on the English Check page, on the device', async () => {
   const w = loadWorker();
@@ -102,7 +108,7 @@ test('only the exact share paths are handled, so the worker cannot be used as a 
   for (const path of ['//evil.com/share-target/', '/x/share-target/', '/hi/x/share-target/', '/share-target/extra']) {
     const w = loadWorker();
     assert.equal(await w.dispatch(post(path, { text: 'attack' })), null, path);
-    assert.equal(await shared(w), undefined, path);
+    assert.equal(await shared(w), '', path);
   }
 });
 
@@ -140,16 +146,23 @@ test('a pending share is never served as a page', async () => {
   assert.doesNotMatch(await res.text(), /secret/);
 });
 
-test('activating removes old versions but keeps the current cache and pending shares', async () => {
+test('activating removes old versions and the old share cache, keeping only the current cache', async () => {
   const w = loadWorker();
   await w.caches.open('gh-oldversion');
   await w.caches.open('gh-share');
   await w.lifecycle('install');
   await w.lifecycle('activate');
   const keys = await w.caches.keys();
-  assert.ok(!keys.includes('gh-oldversion'));
-  assert.ok(keys.includes('gh-share'));
-  assert.equal(keys.filter((k) => k.startsWith('gh-') && k !== 'gh-share').length, 1);
+  assert.equal(keys.length, 1);
+  assert.match(keys[0], /^gh-[0-9a-f]{12}$/);
+});
+
+test('a share lives only in memory, is handed over once, and never touches Cache Storage', async () => {
+  const w = loadWorker();
+  await w.dispatch(post('/share-target/', { text: 'Your KYC expires' }));
+  assert.deepEqual(await w.caches.keys(), [], 'nothing written to Cache Storage');
+  assert.equal(w.take(), 'Your KYC expires');
+  assert.equal(w.take(), '', 'a second page never sees it');
 });
 
 test('requests to other sites are left alone', async () => {

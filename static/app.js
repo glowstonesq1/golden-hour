@@ -14,14 +14,18 @@ const strings = $('strings')?.dataset;
 const labels = strings?.labels ? JSON.parse(strings.labels) : null;
 let check = null; // loaded only on the Check page
 
-// A shared message is kept only until the next page load. Every page deletes it;
-// the Check page shows it first when it was opened by a share.
-async function takeShared() {
-  if (!('caches' in window)) return '';
-  const cache = await caches.open('gh-share');
-  const hit = await cache.match('/__shared__');
-  await cache.delete('/__shared__');
-  return hit ? hit.text() : '';
+// A share is held only in the service worker's memory, never in storage. Every page asks for it once,
+// which also clears it; the Check page shows it when it was opened by a share. If the browser stopped
+// the worker in between, the share is simply gone and the person shares or pastes again.
+function takeShared() {
+  const sw = navigator.serviceWorker?.controller;
+  if (!sw) return Promise.resolve('');
+  return new Promise((resolve) => {
+    const channel = new MessageChannel();
+    const timer = setTimeout(() => resolve(''), 3000);
+    channel.port1.onmessage = (e) => { clearTimeout(timer); resolve(typeof e.data?.text === 'string' ? e.data.text : ''); };
+    sw.postMessage({ type: 'take-share' }, [channel.port2]);
+  });
 }
 
 const typeOf = (out) => labels.types[out.type ?? 'unknown'];
@@ -87,8 +91,54 @@ if (opened) history.replaceState(null, '', location.pathname);
 
 const shared = takeShared().catch(() => '');
 
-// The report maker loads only on its own page; if it fails, the page keeps its no-JavaScript message.
+// The journey script loads only on its own page; if it fails, the page keeps its no-JavaScript message.
 if ($('report-form')) import('/report.js').catch(() => {});
+
+// Home: the "I lost money" door names the next step of a saved case.
+const helpSub = $('help-sub');
+if (helpSub) {
+  let saved = null;
+  try {
+    saved = localStorage.getItem('gh-case-v1');
+  } catch {
+    // storage blocked: keep the default line
+  }
+  if (saved) {
+    import('/case-core.js').then(({ parseCase, nextStep }) => {
+      const step = nextStep(parseCase(saved));
+      if (step) helpSub.textContent = helpSub.dataset.next.replace('{step}', JSON.parse(helpSub.dataset.steps)[step]);
+    }).catch(() => {});
+  }
+}
+
+// Home: Install app. Chrome and Android offer a real prompt; elsewhere (iOS Safari, Firefox) the button
+// shows short Add to Home Screen instructions. Hidden when already running as the installed app.
+const install = $('install');
+if (install) {
+  const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  let prompt = null;
+  const btn = $('install-btn');
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    prompt = e;
+    install.hidden = standalone;
+  });
+  window.addEventListener('appinstalled', () => { install.hidden = true; });
+  // No prompt event after load: this browser does not offer one, so offer instructions instead.
+  if (!standalone) setTimeout(() => { install.hidden = false; }, 1500);
+  btn.addEventListener('click', async () => {
+    if (prompt) {
+      prompt.prompt();
+      const { outcome } = await prompt.userChoice;
+      prompt = null;
+      if (outcome === 'accepted') install.hidden = true;
+      return;
+    }
+    const help = $('install-help');
+    help.hidden = !help.hidden;
+    btn.setAttribute('aria-expanded', String(!help.hidden));
+  });
+}
 
 if (msg && ask && run && status && strings && labels) {
   ask.hidden = false;

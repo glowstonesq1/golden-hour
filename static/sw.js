@@ -3,9 +3,10 @@ const VERSION = '__VERSION__';
 const CACHE = `gh-${VERSION}`;
 const PRECACHE = __PRECACHE__;
 const PREFIXES = __PREFIXES__; // one per language, e.g. "/", "/hi/"
-const SHARE_CACHE = 'gh-share';
-const SHARE_KEY = '/__shared__';
 const MAX_SHARED_CHARS = 10000;
+const SHARE_TTL_MS = 2 * 60 * 1000;
+// A received share waits here, in memory only, until the page that opens next asks for it.
+let pending = null;
 
 self.addEventListener('install', (event) => {
   // cache: 'reload' skips the HTTP cache so a deploy never precaches stale files.
@@ -20,7 +21,8 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE && k !== SHARE_CACHE).map((k) => caches.delete(k))))
+      // Also removes the old 'gh-share' cache that held shared text before shares moved to memory.
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim()),
   );
 });
@@ -29,7 +31,7 @@ self.addEventListener('activate', (event) => {
 const sharePrefix = (pathname) => PREFIXES.find((p) => pathname === `${p}share-target/`);
 
 // A share from WhatsApp or Messages arrives as a POST. It is answered here, on the device,
-// so the shared text never reaches the network. The Check page deletes it as soon as it loads.
+// so the shared text never reaches the network or any storage. The next page load takes it.
 async function receiveShare(request, prefix) {
   let text = '';
   try {
@@ -42,10 +44,18 @@ async function receiveShare(request, prefix) {
   } catch {
     // Malformed share: open the Check page empty rather than fail.
   }
-  const cache = await caches.open(SHARE_CACHE);
-  await cache.put(SHARE_KEY, new Response(text, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } }));
+  pending = { text, at: Date.now() };
   return Response.redirect(`${prefix}check/?shared=1`, 303);
 }
+
+// Pages ask once on load. The share is handed over and forgotten in the same step, so a later page,
+// or a page opened long after, never sees it.
+self.addEventListener('message', (event) => {
+  if (event.data?.type !== 'take-share' || !event.ports?.[0]) return;
+  const fresh = pending && Date.now() - pending.at < SHARE_TTL_MS;
+  event.ports[0].postMessage({ text: fresh ? pending.text : '' });
+  pending = null;
+});
 
 async function fromCache(request) {
   const url = new URL(request.url);

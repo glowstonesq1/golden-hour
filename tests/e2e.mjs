@@ -37,7 +37,12 @@ async function until(cond, ms = 5000) {
   throw new Error('timed out waiting for the page');
 }
 
-const cacheHas = (page) => page.evaluate("caches.open('gh-share').then(c => c.match('/__shared__')).then(r => !!r)");
+// Every cache name and IndexedDB database on the origin: only the app's own precache may exist.
+const storageNames = (page) => page.evaluate(async () => ({
+  caches: await caches.keys(),
+  idb: indexedDB.databases ? (await indexedDB.databases()).map((d) => d.name) : [],
+  local: Object.keys(localStorage),
+}));
 
 const browser = await chromium.launch();
 
@@ -46,14 +51,17 @@ let ctx = await browser.newContext({ javaScriptEnabled: false });
 let page = await ctx.newPage();
 await page.goto(`${BASE}/help/`);
 check((await page.locator('a[href="tel:1930"]').count()) >= 1, 'no-JS: tel:1930 link present on Help');
-check((await page.locator('ol.steps li').count()) === 5, 'no-JS: five Help steps render');
+check((await page.locator('ol.journey > li').count()) === 7, 'no-JS: seven journey steps render');
+check(await page.locator('.js-only').first().isHidden() && await page.locator('#nojs').isVisible(), 'no-JS: interactive parts stay hidden, the letter explains it needs JavaScript');
 await page.goto(`${BASE}/check/`);
 check(await page.locator('#ask').isHidden(), "no-JS: 'Ask my family' stays hidden on Check");
 check(await page.locator('#run').isHidden(), 'no-JS: Check button stays hidden');
 check(await page.locator('#fallback').isVisible(), 'no-JS: static scam signs are shown');
-await page.goto(`${BASE}/report/`);
-check(await page.locator('#nojs').isVisible() && await page.locator('#report-form').isHidden(), 'no-JS: report page explains it needs JavaScript');
-check((await page.locator('a[href="tel:1930"]').count()) >= 1, 'no-JS: report page still has the 1930 button');
+for (const [from, to] of [['/report/', '/help/#letter'], ['/hi/case/', '/hi/help/']]) {
+  await page.goto(`${BASE}${from}`);
+  await page.waitForURL(`${BASE}${to}`);
+  check((await page.locator('a[href="tel:1930"]').count()) >= 1, `no-JS: ${from} forwards to ${to}, with 1930`);
+}
 await ctx.close();
 
 // 2. With JavaScript: service worker installs, CSP raises no violations, pages work offline.
@@ -79,14 +87,12 @@ await page.locator('#run').waitFor();
 await page.fill('#msg', 'Install AnyDesk and tell us the code');
 await page.click('#run');
 check((await page.locator('#result').getAttribute('data-verdict')) === 'likely', 'offline: Check gives a verdict');
+for (const [from, to] of [['/report/', '/help/#letter'], ['/hi/case/', '/hi/help/']]) {
+  await page.goto(`${BASE}${from}`);
+  await page.waitForURL(`${BASE}${to}`);
+  check(await page.locator('ol.journey').isVisible(), `offline: ${from} lands on the journey`);
+}
 await ctx.setOffline(false);
-
-// A leftover share is deleted by the next page load, whichever page it is.
-await page.goto(`${BASE}/`);
-await page.evaluate("caches.open('gh-share').then(c => c.put('/__shared__', new Response('left over')))");
-await page.goto(`${BASE}/help/`);
-await page.waitForFunction("caches.open('gh-share').then(c => c.match('/__shared__')).then(r => !r)");
-check(true, 'leftover share deleted on the next page load');
 
 // 3. Share target: a POST is answered by the worker, and the shared message is checked at once.
 await page.goto(`${BASE}/hi/`);
@@ -96,7 +102,15 @@ await page.locator('#result').waitFor();
 const value = await page.inputValue('#msg');
 check(value.includes('KYC expires') && value.includes('SBI Alert'), 'share: text lands in the Hindi Check box');
 check(page.url() === `${BASE}/hi/check/`, 'share: ?shared=1 removed from the address bar');
-check(!(await cacheHas(page)), 'share: shared text deleted from the cache after reading');
+let names = await storageNames(page);
+check(names.caches.length === 1 && /^gh-[0-9a-f]{12}$/.test(names.caches[0]) && !names.idb.length && !names.local.length, 'share: nothing written to Cache Storage, IndexedDB or localStorage');
+await page.goto(`${BASE}/hi/check/?shared=1`);
+await page.locator('#run').waitFor();
+check((await page.inputValue('#msg')) === '', 'share: handed over once; a later page never sees it');
+await page.goto(`${BASE}/hi/check/`);
+await share(page, '/hi/share-target/', { text: 'Your KYC expires today. Update now: http://bit.ly/x', title: 'SBI Alert' });
+await page.waitForURL(`${BASE}/hi/check/**`);
+await page.locator('#result').waitFor();
 check((await page.locator('#result').getAttribute('data-verdict')) === 'likely', 'share: verdict shown without a tap');
 check((await page.textContent('#verdict')).trim() === 'शायद धोखा है', 'share: verdict in Hindi');
 check(await page.locator('#fallback').isHidden(), 'share: static fallback hidden once a verdict shows');
@@ -149,10 +163,52 @@ await p2.click('#run');
 if (SHOTS) await p2.screenshot({ path: `${SHOTS}/check-en-dark.png`, fullPage: true });
 await ctx2.close();
 
-// 6. Report maker. Speech and on-device AI are faked so both paths of each run in a headless browser.
+// 6. Home: Install app (D5) and the "I lost money" door naming the next step.
+const fireInstall = () => window.addEventListener('load', () => {
+  const e = new Event('beforeinstallprompt');
+  e.prompt = () => { window.__prompted = true; };
+  e.userChoice = Promise.resolve({ outcome: 'accepted' });
+  window.dispatchEvent(e);
+});
+const standaloneMode = () => {
+  const real = window.matchMedia.bind(window);
+  window.matchMedia = (q) => (q.includes('display-mode: standalone') ? { matches: true, media: q, addEventListener() {}, removeEventListener() {} } : real(q));
+};
+let ictx = await browser.newContext();
+await ictx.addInitScript(fireInstall);
+let ip = await ictx.newPage();
+await ip.goto(`${BASE}/`);
+await ip.locator('#install').waitFor();
+check(await ip.locator('#install-btn').isVisible(), 'install: button appears when beforeinstallprompt fires');
+await ip.click('#install-btn');
+check(await ip.evaluate('window.__prompted === true'), 'install: the button opens the browser install prompt');
+await until(async () => ip.locator('#install').isHidden());
+check(true, 'install: hidden once installed');
+await ictx.close();
+
+ictx = await browser.newContext();
+await ictx.addInitScript(standaloneMode);
+await ictx.addInitScript(fireInstall);
+ip = await ictx.newPage();
+await ip.goto(`${BASE}/`);
+await ip.waitForTimeout(1800);
+check(await ip.locator('#install').isHidden(), 'install: hidden when already running as the installed app');
+await ictx.close();
+
+ictx = await browser.newContext();
+ip = await ictx.newPage();
+await ip.goto(`${BASE}/mr/`);
+check(await ip.locator('#install').isHidden(), 'install: not shown before the browser has had a chance to offer a prompt');
+await ip.locator('#install-btn').waitFor({ state: 'visible', timeout: 4000 });
+await ip.click('#install-btn');
+check((await ip.innerText('#install-help')).includes('Add to Home Screen'), 'install: without a prompt event, instructions show (iOS and other browsers)');
+check(await ip.locator('html[lang="mr"] #install-help').isVisible(), 'install: instructions are on the Marathi page');
+await ictx.close();
+
+// 7. The journey: case on this phone, call card, proof, letter. Speech and voices are faked.
 const SMS = 'Dear Customer, your A/c XX4821 is debited by Rs.12,000.00 on 28-Oct-26 trf to Ramesh Kumar Refno 482910384756. -SBI\n\n'
   + 'Rs.1,499.50 debited from a/c **4821 on 28-Oct-26 to VPA refund221@ybl (UPI Ref No 773829104857). -HDFC Bank';
-const fakes = ({ onDevice }) => {
+const fakes = ({ onDevice, localVoice }) => {
   class FakeRecognition {
     static async available() { await new Promise((r) => setTimeout(r, window.__slow || 0)); return 'available'; }
     start() { window.__instances = (window.__instances || 0) + 1; window.__started = { local: !!this.processLocally }; setTimeout(() => this.onresult?.({ resultIndex: 0, results: [Object.assign([{ transcript: 'He called from 9876543210 and said my KYC expired.' }], { isFinal: true })] }), 50); }
@@ -161,22 +217,57 @@ const fakes = ({ onDevice }) => {
   }
   if (!onDevice) delete FakeRecognition.available;
   Object.defineProperty(window, 'SpeechRecognition', { value: FakeRecognition, configurable: true });
-  Object.defineProperty(window, 'Summarizer', { configurable: true, value: {
-    availability: async () => 'available',
-    create: async () => ({ summarize: async () => window.__summary, destroy() {} }),
+  const voices = [{ name: 'Remote', lang: 'en-IN', localService: false }, { name: 'Remote hi', lang: 'hi-IN', localService: false }];
+  if (localVoice) voices.push({ name: 'Local', lang: 'en-IN', localService: true });
+  window.SpeechSynthesisUtterance = class { constructor(text) { this.text = text; } };
+  Object.defineProperty(window, 'speechSynthesis', { configurable: true, value: {
+    getVoices: () => voices, speak: (u) => { window.__spoken = u.text; window.__voice = u.voice?.name; }, cancel() {}, addEventListener() {},
   } });
 };
-const rctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
-await rctx.addInitScript(fakes, { onDevice: true });
+const allowed = new Set(['lossAt', 'amount', 'ack', 'bankRef', 'mrmId', 'bank', 'utrs', 'done']);
+const savedCase = async (p) => JSON.parse((await p.evaluate("localStorage.getItem('gh-case-v1')")) || '{}');
+
+const rctx = await browser.newContext({ viewport: { width: 360, height: 780 } });
+await rctx.addInitScript(fakes, { onDevice: true, localVoice: true });
 const rp = await rctx.newPage();
 rp.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
 rp.on('pageerror', (e) => errors.push(String(e)));
-await rp.goto(`${BASE}/help/`);
-await rp.click('a.report-card');
-await rp.waitForURL(`${BASE}/report/`);
-check(await rp.locator('#report-form').isVisible() && await rp.locator('#nojs').isHidden(), 'Help links to the report maker, which loads');
+await rp.goto(`${BASE}/`);
+await rp.click('a.door-primary');
+await rp.waitForURL(`${BASE}/help/`);
+await rp.locator('#ack').waitFor();
+check(await rp.locator('#nojs').isHidden() && (await rp.locator('[data-done]:visible').count()) === 7, 'journey: loads with a done button on each step');
+check(await rp.locator('#step-call.is-next').count() === 1, 'journey: step 1 is marked as the next step');
+check(await rp.locator('#read-aloud').isHidden() && await rp.locator('#ready-empty').isVisible(), 'call card: empty until there are details');
+
+await rp.fill('#ack', '1234');
+await rp.click('#ack-save');
+check((await rp.innerText('#ack-status')).includes('14 digits'), 'ack: a wrong number is rejected with a helpful message');
+await rp.fill('#ack', '31910280012345');
+await rp.click('#ack-save');
+check((await savedCase(rp)).ack === '31910280012345' && !!(await savedCase(rp)).done?.call, 'ack: a valid number is saved and step 1 is marked done');
+
+await rp.fill('#sms', SMS);
+await rp.fill('#bank', 'State Bank of India');
+await rp.click('#find');
+check((await rp.locator('#payments .payment').count()) === 2, 'proof: two payments found in the pasted SMS');
+await rp.click('#save-case');
+let c = await savedCase(rp);
+check(c.amount === '13499.50' && c.utrs?.length === 2 && c.lossAt === '2026-10-28' && c.bank === 'State Bank of India', 'proof: amount, UTRs, date and bank saved to the case');
+check(!!c.done?.proof && (await rp.locator('#step-block.is-next').count()) === 1, 'proof: step marked done and the next step moves on');
+const ready = await rp.innerText('#ready-list');
+check(ready.includes('Rs 13,499.50') && ready.includes('482910384756') && ready.includes('refund221@ybl'), 'call card: amount, UTRs and the scammer UPI ID shown');
+check(await rp.locator('#read-aloud').isVisible(), 'read aloud: offered when the phone has an on-device voice');
+await rp.click('#read-aloud');
+check((await rp.evaluate('window.__voice')) === 'Local' && (await rp.evaluate('window.__spoken')).includes('4 8 2 9'), 'read aloud: uses the on-device voice and reads UTRs digit by digit');
+
+await rp.click('[data-done="block"]');
+check((await rp.getAttribute('[data-done="block"]', 'aria-pressed')) === 'true' && (await rp.innerText('[data-done="block"]')).includes('2026'), 'done: marking a step done shows the date in Latin digits');
+await rp.click('[data-done="block"]');
+check((await rp.getAttribute('[data-done="block"]', 'aria-pressed')) === 'false', 'done: tapping again undoes it');
+
 await rp.click('.report-form > button.primary');
-check((await rp.innerText('#form-status')).trim() !== '', 'report: an empty story explains what to do');
+check((await rp.innerText('#form-status')).trim() !== '', 'letter: an empty story explains what to do');
 await rp.evaluate('window.__slow = 300');
 await rp.click('#mic');
 await rp.click('#mic');
@@ -184,63 +275,62 @@ await until(async () => (await rp.inputValue('#story')).includes('9876543210'));
 check(await rp.evaluate('window.__started.local') && !(await rp.locator('dialog').count()), 'mic: on-device speech is used without asking');
 check((await rp.evaluate('window.__instances')) === 1, 'mic: a double tap starts only one recorder');
 await rp.click('#mic');
-await rp.fill('#sms', SMS);
 await rp.fill('#name', 'Sunita Deshpande');
 await rp.fill('#mobile', '9123456780');
 await rp.selectOption('#channel', 'call');
 await rp.click('.report-form > button.primary');
-await rp.locator('#review').waitFor();
-check((await rp.locator('#payments .payment').count()) === 2, 'report: two payments found in the pasted SMS');
-check((await rp.inputValue('#contacts')).includes('9876543210'), "report: the scammer's number is listed");
+await rp.locator('#doc').waitFor();
 let doc = await rp.innerText('#doc');
-check(doc.includes('Rs 13,499.50') && doc.includes('482910384756') && doc.includes('Sunita Deshpande') && doc.includes('Phone call'), 'report: letter has total, UTR, name and contact method');
-check(doc.includes('KYC update or account block'), 'report: fraud type named from the story');
+check(doc.includes('Rs 13,499.50') && doc.includes('482910384756') && doc.includes('Sunita Deshpande') && doc.includes('Phone call'), 'letter: total, UTR, name and contact method');
+check(doc.includes('31910280012345') && doc.includes('KYC update or account block'), 'letter: acknowledgement number from the case, fraud type from the story');
+check((await rp.inputValue('#contacts')).includes('9876543210') && (await rp.inputValue('#contacts')).includes('refund221@ybl'), "letter: scammer's number and UPI ID listed");
 await rp.fill('#pay-0-amount', '10,000.00');
-check((await rp.innerText('#doc')).includes('Rs 11,499.50'), 'report: editing an amount updates the total');
-await rp.click('.report-form > button.primary');
-check((await rp.inputValue('#pay-0-amount')) === '10,000.00', 'report: making the report again keeps corrections');
-check((await rp.inputValue('#fraud-type')) === 'kyc', 'report: fraud type is pre-filled from the story');
+check((await rp.innerText('#doc')).includes('Rs 11,499.50'), 'letter: editing a payment amount updates the total');
 await rp.selectOption('#fraud-type', 'otp');
-check((await rp.innerText('#doc')).includes('OTP or screen-sharing request'), 'report: fraud type can be changed');
-await rp.fill('#ack', '31910280012345');
-check((await rp.innerText('#doc')).includes('31910280012345'), 'report: adding the 1930 number updates the letter');
-if (SHOTS) await rp.screenshot({ path: `${SHOTS}/report-review.png` });
+check((await rp.innerText('#doc')).includes('OTP or screen-sharing request'), 'letter: fraud type can be changed');
+c = await savedCase(rp);
+const raw = await rp.evaluate("localStorage.getItem('gh-case-v1')");
+check(Object.keys(c).every((k) => allowed.has(k)) && !/Sunita|9123456780|9876543210|refund221|KYC expired|4821/.test(raw), 'privacy: the saved case holds no name, phone, UPI ID, account digits or story');
+names = await storageNames(rp);
+check(names.local.join() === 'gh-case-v1' && !names.idb.length, 'privacy: the case is the only thing in localStorage, no IndexedDB');
 
 await rp.emulateMedia({ media: 'print' });
 const pdf = (await rp.pdf()).toString('latin1');
 await rp.emulateMedia({ media: 'screen' });
 const pages = (pdf.match(/\/Type\s*\/Page[^s]/g) || []).length;
 check(pages >= 1 && pages <= 3, `print: only the letter prints (${pages} pages)`);
-check(await rp.locator('#ai').isVisible(), 'AI: summary button shown where on-device AI exists');
-await rp.evaluate("window.__summary = 'They took Rs 99,999 after calling from 9876543210.'");
-await rp.click('#ai-run');
-await until(async () => (await rp.textContent('#ai-status')).length > 0 && await rp.isEnabled('#ai-run'));
-check(await rp.locator('#ai-result').isHidden() && !(await rp.innerText('#doc')).includes('99,999'), 'AI: a summary with an invented amount is thrown away');
-await rp.evaluate("window.__summary = 'A caller from 9876543210 said the KYC expired; Rs 12,000.00 and Rs 1,499.50 were taken.'");
-await rp.click('#ai-run');
-await rp.locator('#ai-result').waitFor();
-check(!(await rp.innerText('#doc')).includes('on-device AI draft'), 'AI: summary stays out until the person confirms it');
-await rp.check('#ai-ok');
-check((await rp.innerText('#doc')).includes('on-device AI draft'), 'AI: confirmed summary goes into the letter');
-
 await rp.evaluate("navigator.share = undefined; navigator.clipboard.writeText = (t) => { window.__copied = t; return Promise.resolve(); }");
 await rp.click('#copy');
 const copiedReport = await rp.evaluate('window.__copied');
-check(copiedReport.startsWith('To,') && copiedReport.includes('Total amount lost: Rs 11,499.50'), 'report: Copy gives the full letter as text');
-await rp.click('#next-toggle');
-check(await rp.locator('#next').isVisible() && (await rp.locator('#next ol.steps li').count()) === 5, "'See the exact next steps' shows five steps");
-check((await rp.getAttribute('#next-toggle', 'aria-expanded')) === 'true', 'next steps toggle reports its state');
-if (SHOTS) await rp.screenshot({ path: `${SHOTS}/report-filled.png`, fullPage: true });
-await rp.click('#clear');
-check((await rp.inputValue('#story')) === '' && await rp.locator('#preview').isHidden() && (await rp.locator('#doc').innerText()) === '', 'Clear everything empties the page');
+check(copiedReport.startsWith('To,') && copiedReport.includes('Total amount lost: Rs 11,499.50'), 'letter: Copy gives the full letter as text');
+if (SHOTS) await rp.screenshot({ path: `${SHOTS}/journey-filled.png`, fullPage: true });
+
+// The case survives a reload: the call card and a letter still work from the saved fields alone.
+await rp.reload();
+await rp.locator('#ack').waitFor();
+check((await rp.inputValue('#ack')) === '31910280012345' && (await rp.innerText('#ready-list')).includes('Rs 13,499.50'), 'case: kept after reload');
+check(!(await rp.innerText('#ready-list')).includes('refund221'), "case: the scammer's UPI ID was never stored");
+await rp.fill('#story', 'They called me.');
+await rp.click('.report-form > button.primary');
+doc = await rp.innerText('#doc');
+check(doc.includes('Rs 13,499.50') && doc.includes('773829104857'), 'letter: built from the saved case after a reload');
+await rp.goto(`${BASE}/`);
+check((await rp.innerText('#help-sub')).includes('Block your card and UPI'), 'home: the I lost money door names the next step');
+await rp.goto(`${BASE}/help/`);
+await rp.locator('#clear').click();
+check(!(await rp.evaluate("localStorage.getItem('gh-case-v1')")) && await rp.locator('#ready-empty').isVisible() && (await rp.inputValue('#ack')) === '', 'Clear everything removes the case from the phone');
 await rctx.close();
 
-// Without on-device speech, the mic asks first and does nothing on "Type instead".
+// Hindi, without on-device speech or voices: the mic asks first; no read-aloud through a network voice.
 const cctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
-await cctx.addInitScript(fakes, { onDevice: false });
+await cctx.addInitScript(fakes, { onDevice: false, localVoice: false });
 const cp = await cctx.newPage();
-await cp.goto(`${BASE}/hi/report/`);
+await cp.goto(`${BASE}/hi/help/`);
 await cp.locator('#mic').waitFor();
+await cp.fill('#sms', SMS);
+await cp.click('#find');
+await cp.click('#save-case');
+check(await cp.locator('#read-aloud').isHidden(), 'read aloud: never offered with only network voices');
 await cp.click('#mic');
 check(await cp.locator('dialog.consent').isVisible(), 'mic: asks before sending a voice off the phone');
 check((await cp.getAttribute('dialog.consent', 'aria-labelledby')) === 'consent-title', 'mic: the dialog has an accessible name');
@@ -251,12 +341,20 @@ await cp.click('#mic');
 await cp.locator('dialog.consent .primary').click();
 await until(async () => (await cp.inputValue('#story')).length > 0);
 check(await cp.evaluate('window.__started.local === false'), 'mic: after consent, cloud speech is used');
-check(await cp.locator('#ai').isHidden(), 'AI: no AI summary on Hindi pages (on-device models are English-only)');
-await cp.fill('#sms', SMS);
 await cp.click('.report-form > button.primary');
 await cp.locator('#doc').waitFor();
-check((await cp.innerText('#doc')).includes('विषय: Rs 13,499.50 की ऑनलाइन वित्तीय धोखाधड़ी की शिकायत'), 'report: Hindi letter');
+check((await cp.innerText('#doc')).includes('विषय: Rs 13,499.50 की ऑनलाइन वित्तीय धोखाधड़ी की शिकायत'), 'letter: Hindi letter');
 await cctx.close();
+
+const mctx = await browser.newContext();
+const mp = await mctx.newPage();
+await mp.goto(`${BASE}/mr/help/`);
+await mp.locator('#ack').waitFor();
+await mp.evaluate("localStorage.setItem('gh-case-v1', JSON.stringify({ done: { call: '2026-10-28' } }))");
+await mp.reload();
+await mp.locator('[data-done="call"][aria-pressed="true"]').waitFor();
+check(!/[०-९]/.test(await mp.innerText('[data-done="call"]')), 'Marathi: dates use Latin digits');
+await mctx.close();
 
 const csp = errors.filter((e) => e.includes('Content Security Policy') || e.includes('Refused'));
 check(!csp.length, `no CSP violations (${csp.slice(0, 2)})`);

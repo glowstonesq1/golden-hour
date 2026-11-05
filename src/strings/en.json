@@ -8,9 +8,10 @@
     "lead": "Lost money to an online scam? The first hour matters most.",
     "helpTitle": "I lost money",
     "helpSub": "Step-by-step help for the next hour",
-    "checkTitle": "I got a suspicious message",
-    "checkSub": "Check it before you reply, pay or click",
-    "trust": "Free. Works offline. Nothing you type leaves your phone."
+    "checkTitle": "Check a link or message",
+    "checkSub": "Before you open, pay or reply",
+    "trust": "Free. Works offline. Nothing you type leaves your phone.",
+    "helpNext": "Next: {step}"
   },
   "call": {
     "label": "Call 1930 now",
@@ -24,42 +25,79 @@
   },
   "sourceLabel": "Source",
   "help": {
-    "title": "Lost money? Do these now",
+    "title": "Lost money? Do these steps",
     "lead": "Do them in this order. Even if hours or days have passed, still do every step.",
     "steps": [
       {
-        "title": "Call 1930",
-        "body": "Say you lost money in online fraud. Keep your bank SMS open: they will ask for the amount, the time and the transaction ID (UTR). Write down the complaint number they give you.",
+        "id": "call",
+        "title": "Call 1930 now",
+        "body": "Say you lost money in online fraud. They will ask for the amount, the time and the transaction ID (UTR). Write down the acknowledgement number they send you by SMS.",
         "source": "https://cybercrime.gov.in/"
       },
       {
+        "id": "proof",
+        "title": "Add your proof",
+        "body": "Paste the bank SMS or UPI receipt for each payment. The details are copied from them for you to check. Do not delete chats, SMS or call logs.",
+        "source": ""
+      },
+      {
+        "id": "block",
         "title": "Block your card and UPI",
         "body": "Call your bank on the number printed on your card or shown in the bank's own app. Never use a number that came in a message or a search ad.",
         "source": ""
       },
       {
-        "title": "Finish the complaint online within 24 hours",
-        "body": "On cybercrime.gov.in, choose financial fraud and enter your 1930 complaint number. Add screenshots of the transaction and the chat.",
+        "id": "portal",
+        "title": "Finish the complaint on cybercrime.gov.in",
+        "body": "Do it today, ideally within 24 hours of your call. Choose financial fraud and enter your 1930 acknowledgement number. Add screenshots of the transaction and the chat.",
         "source": "https://nicdc.in/images/instructions_citizenreportingcyberfrauds_nw.pdf"
       },
       {
+        "id": "bank",
         "title": "Tell your bank in writing",
         "body": "Use the bank app's fraud option or email the bank, and keep the complaint number. For frauds from 1 January 2027, tell your bank and 1930 within 5 days: small losses may then be compensated.",
         "source": "https://www.rbi.org.in/scripts/BS_PressReleaseDisplay.aspx?prid=63011"
       },
       {
-        "title": "Keep every proof",
-        "body": "Do not delete messages, chats, call logs or the scammer's UPI ID. Take screenshots now.",
+        "id": "claim",
+        "title": "Was your money held? Claim it",
+        "body": "If the police or the 1930 team tell you money was held in the account it went to, you can ask for it to be returned. No government body or genuine helper ever charges a fee to recover your money. Anyone who asks for one is another scammer.",
+        "source": ""
+      },
+      {
+        "id": "back",
+        "title": "Money back",
+        "body": "When the money reaches your account, mark this step done. Keep every document until your complaint is closed.",
         "source": ""
       }
     ],
+    "readyTitle": "Have this ready for the call",
+    "readyEmpty": "Add your proof in step 2 and the details will appear here.",
+    "ready": {
+      "amount": "Amount lost",
+      "when": "Date and time",
+      "utrs": "Transaction IDs (UTR)",
+      "bank": "Your bank",
+      "scammer": "Scammer's number or UPI ID"
+    },
+    "readAloud": "Read aloud",
+    "ackLabel": "Acknowledgement number from the 1930 SMS (14 digits)",
+    "ackSave": "Save",
+    "ackSaved": "Saved to your case on this phone.",
+    "ackInvalid": "That does not look right. It should be 14 digits, from the SMS sent after your 1930 call.",
+    "done": "Mark as done",
+    "undone": "Done on {date}. Tap to undo.",
+    "find": "Find the details",
+    "saveCase": "Save to my case",
+    "caseSaved": "Saved to your case on this phone.",
+    "letterTitle": "Complaint letter",
+    "letterBody": "Turn your case into a formal letter for the police or your bank. Your name, number and story are used only for the letter and are never saved.",
+    "clearCase": "Clear everything",
+    "caseCleared": "Your case has been removed from this phone.",
     "noLossTitle": "No money lost yet?",
     "noLossBody": "Report the call or message on Chakshu (sancharsaathi.gov.in) so the number can be blocked.",
     "noLossLink": "https://sancharsaathi.gov.in/sfc/",
-    "portalLink": "https://cybercrime.gov.in/",
-    "reportTitle": "Make my complaint report",
-    "reportBody": "Speak or type what happened. Get a formal complaint ready to print, email or take to the police.",
-    "reportButton": "Start the report"
+    "portalLink": "https://cybercrime.gov.in/"
   },
   "check": {
     "title": "Check a message",
@@ -170,17 +208,16 @@
   "privacy": {
     "title": "Privacy",
     "body": [
-      "Golden Hour has no server that receives what you type, paste or share. Everything is processed on your phone.",
-      "The app keeps no history. A message you share to it is kept on your phone only until the next page opens, then deleted.",
+      "Golden Hour has no server that receives what you type, paste, share or say. Everything is processed on your phone.",
+      "What this phone remembers: to keep your place in the recovery steps, Golden Hour saves only dates, the amount lost, reference numbers (acknowledgement, UTR, bank complaint and refund request numbers) and your bank's name, in this browser's storage on this phone. It never saves your name, phone number, PAN, account or card numbers, OTPs, the scammer's details or what happened. Clear everything on the I lost money page deletes it.",
+      "Screenshots, messages and chats you share or choose are read in the phone's memory only. They are never saved, cached or uploaded.",
       "There are no accounts, cookies, ads or analytics.",
       "Shares are handled on your phone by the installed app. If the app's stored files were cleared, open the app once before sharing; otherwise a share can reach our web host, which rejects it.",
-      "Voice typing on the report page: if your phone can turn speech into text by itself, it does. If not, Golden Hour asks you first; if you agree, your browser sends your voice to Google or Apple to turn it into text. Golden Hour never receives your voice.",
+      "Voice typing for the complaint letter: if your phone can turn speech into text by itself, it does. If not, Golden Hour asks you first; if you agree, your browser sends your voice to Google or Apple to turn it into text. Golden Hour never receives your voice.",
       "Links to cybercrime.gov.in, sancharsaathi.gov.in and your phone dialer open outside the app."
     ]
   },
   "report": {
-    "title": "Make your complaint report",
-    "lead": "Speak or type what happened. Golden Hour turns it into a formal complaint you can print, email or take to the police. It takes about five minutes.",
     "noJs": "The report maker needs JavaScript. Until then, call 1930 and follow the steps on the Help page.",
     "storyTitle": "What happened",
     "storyLabel": "Tell it in your own words",
@@ -206,7 +243,6 @@
     "mobile": "Mobile number",
     "email": "Email (optional)",
     "address": "Address or city",
-    "incidentTitle": "About the fraud",
     "firstContact": "Date they first contacted you",
     "channel": "How did they contact you?",
     "channelPick": "Choose one",
@@ -219,7 +255,6 @@
       "app": "Website or app",
       "other": "Other"
     },
-    "ack": "1930 complaint number (if you have one)",
     "bank": "Your bank or wallet",
     "recipient": "Who is this report for?",
     "recipients": {
@@ -235,46 +270,12 @@
     "removePayment": "Remove",
     "paymentN": "Payment {n}",
     "contactsLabel": "Scammer's phone numbers, UPI IDs and links (one per line)",
-    "aiButton": "Write a short summary on this device (AI)",
-    "aiWorking": "Writing the summary on this device…",
-    "aiDownloading": "Downloading the on-device AI model: {p}%",
-    "aiRejected": "The AI summary added numbers or IDs that are not in what you said, so it was not used. Your own words are in the report.",
-    "aiFailed": "The on-device AI could not write a summary. Your own words are in the report.",
-    "aiLabel": "AI summary (check every word)",
-    "aiConfirm": "I have read this summary and it is correct. Put it in the report.",
-    "aiNote": "AI can make mistakes. It checks that every number and ID is from your own words, but not the meaning. Your own words always stay in the report.",
     "previewTitle": "Your report",
     "print": "Print or save as PDF",
     "copy": "Copy text",
     "share": "Send or share",
     "copied": "Report copied. Paste it into an email, the portal or a message.",
     "copyFail": "Could not copy. Use Print or save as PDF instead.",
-    "nextButton": "See the exact next steps",
-    "nextTitle": "What to do with this report",
-    "next": [
-      {
-        "title": "Call 1930 if you have not yet",
-        "body": "Say you have a written report. Write the complaint number they give you into the form above; the report updates."
-      },
-      {
-        "title": "Finish the complaint on cybercrime.gov.in within 24 hours",
-        "body": "Choose financial fraud and enter your 1930 complaint number. Copy each part of this report into the matching boxes and upload your screenshots.",
-        "source": "https://nicdc.in/images/instructions_citizenreportingcyberfrauds_nw.pdf"
-      },
-      {
-        "title": "Send it to your bank",
-        "body": "Use the fraud option in your bank's app, or the email on the bank's own website. Never use a number or email that came in a message. For frauds from 1 January 2027, tell your bank and 1930 within 5 days.",
-        "source": "https://www.rbi.org.in/scripts/BS_PressReleaseDisplay.aspx?prid=63011"
-      },
-      {
-        "title": "Give a signed copy to the police",
-        "body": "Print it, sign it and take it to your nearest police station or cyber cell with your ID proof. Ask for a stamped copy as a receipt."
-      },
-      {
-        "title": "Keep every proof",
-        "body": "Do not delete the chats, SMS, call logs or the scammer's UPI ID. Keep a copy of this report."
-      }
-    ],
     "clear": "Clear everything",
     "cleared": "Everything you entered has been cleared from this page.",
     "doc": {
@@ -290,7 +291,6 @@
       "introAck": "I have reported it on the 1930 helpline. Complaint number: {ack}.",
       "s1": "Details of the complainant",
       "s2": "What happened, in my own words",
-      "s2ai": "Short summary (on-device AI draft, checked by me)",
       "s3": "Transactions",
       "col": {
         "when": "Date and time",
@@ -329,5 +329,15 @@
       },
       "footer": "Prepared on my phone with Golden Hour, an independent tool. This is not an official form."
     }
+  },
+  "install": {
+    "button": "Install app",
+    "ios": "On iPhone or iPad: tap the Share button, then Add to Home Screen.",
+    "other": "In other browsers: open the browser menu and choose Install app or Add to Home screen."
+  },
+  "moved": {
+    "title": "This page has moved",
+    "body": "Opening the I lost money page.",
+    "link": "Open it now"
   }
 }
