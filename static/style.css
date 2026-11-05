@@ -189,6 +189,21 @@ details#paste summary { cursor: pointer; font-weight: 700; color: var(--accent);
 .card-state { margin: 0.4rem 0 0; min-height: 1.2em; font-size: 0.9rem; color: var(--muted); }
 .total-line { font-weight: 750; }
 
+/* Portal copilot: one stage at a time, values to copy */
+.walk { margin: 1rem 0; padding: 1rem 1.25rem; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); }
+.walk h3 { margin-bottom: 0.25rem; }
+.stages { list-style: none; padding: 0; margin: 0.75rem 0; }
+.stage h4 { font-size: 1.1rem; margin: 0 0 0.25rem; }
+.stage + .stage { margin-top: 1rem; }
+.stage-nav { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-top: 0.75rem; }
+.stage-count { color: var(--muted); font-size: 0.95rem; text-align: center; }
+.copy-row { display: grid; grid-template-columns: 1fr auto; gap: 0.15rem 0.75rem; align-items: center; padding: 0.6rem 0; border-top: 1px solid var(--line); }
+.copy-label { grid-column: 1 / -1; color: var(--muted); font-size: 0.95rem; }
+.copy-value { font-weight: 750; overflow-wrap: anywhere; }
+.copy-btn { min-height: 2.75rem; padding: 0.4rem 0.9rem; }
+.evidence-list { padding-left: 1.25rem; }
+.evidence-list li { margin: 0.4rem 0; }
+
 .steps { list-style: none; counter-reset: step; padding: 0; margin: 1.5rem 0; }
 .steps li { counter-increment: step; position: relative; padding: 0 0 1.6rem 3.25rem; }
 .steps li::before {

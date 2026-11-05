@@ -358,5 +358,52 @@
     "title": "This page has moved",
     "body": "Opening the I lost money page.",
     "link": "Open it now"
+  },
+  "portal": {
+    "walk": "Walk me through the portal",
+    "checked": "Steps as reported on 4 November 2026. The portal may change; follow what it shows.",
+    "stageN": "Stage {n} of {total}",
+    "back": "Back",
+    "next": "Next",
+    "open": "Open cybercrime.gov.in",
+    "copy": "Copy",
+    "copied": "Copied: {value}",
+    "notYet": "Not in your case yet. Add your proof in step 2.",
+    "stages": [
+      {
+        "title": "Start a financial fraud complaint",
+        "body": "On cybercrime.gov.in, choose to register a complaint, then financial fraud, then accept the terms."
+      },
+      {
+        "title": "Sign in with your phone",
+        "body": "The portal asks for your state, email and mobile number, then sends an OTP. Type the OTP and the CAPTCHA yourself. Golden Hour never sees them, and nobody should ever ask you for them."
+      },
+      {
+        "title": "Incident details",
+        "body": "The portal asks what happened and about the money: when, how much, the transaction ID (UTR) and your bank. Copy them from here."
+      },
+      {
+        "title": "Suspect details",
+        "body": "Add the scammer's phone number, UPI ID and any link they sent."
+      },
+      {
+        "title": "Your details",
+        "body": "Type your own name and address. Golden Hour does not keep them."
+      },
+      {
+        "title": "Evidence",
+        "body": "Upload screenshots of the payment and the chat. Each file must be under 5 MB. Make copies under 5 MB here; they are not saved anywhere."
+      },
+      {
+        "title": "Preview, submit and confirm",
+        "body": "Check everything, then press Submit and Confirm yourself. The complaint number comes by SMS and email, and you can download a PDF. Paste the acknowledgement number below."
+      }
+    ],
+    "evidenceChoose": "Make copies under 5 MB",
+    "evidenceReady": "Ready: {name} ({size})",
+    "evidenceFail": "This image could not be converted. Try a screenshot instead of a photo.",
+    "ackPortal": "Starts with 2: a complaint filed on the portal.",
+    "ackCall": "Starts with 3: a complaint registered by calling 1930.",
+    "ackOther": "Saved. It does not start with 2 or 3, so check it matches the SMS."
   }
 }

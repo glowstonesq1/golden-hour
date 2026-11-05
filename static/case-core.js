@@ -110,3 +110,11 @@ export function toIso(text) {
   if (time[3]) hh = (hh % 12) + (time[3].startsWith('p') ? 12 : 0);
   return hh < 24 && Number(time[2]) < 60 ? `${iso}T${String(hh).padStart(2, '0')}:${time[2]}` : iso;
 }
+
+// NCRP acknowledgement numbers are 14 digits. As reported (not yet confirmed on the live portal):
+// portal complaints start with 2, complaints registered by calling 1930 start with 3.
+export function ackInfo(input) {
+  const v = String(input ?? '').replace(/[\s-]/g, '');
+  if (!/^\d{14}$/.test(v)) return { ok: false, value: v, kind: null };
+  return { ok: true, value: v, kind: v[0] === '2' ? 'portal' : v[0] === '3' ? 'call' : 'other' };
+}

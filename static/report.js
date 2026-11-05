@@ -3,7 +3,8 @@
 // Only case-core's sanitized fields ever reach localStorage; names, numbers and the story stay in memory.
 import { check } from './rules.js';
 import { extractContacts, buildReport, reportText, amountValue } from './report-core.js';
-import { CASE_KEY, parseCase, sanitize, markDone, nextStep, formatDate, formatAmount, toIso } from './case-core.js';
+import { CASE_KEY, parseCase, sanitize, markDone, nextStep, formatDate, formatAmount, toIso, ackInfo } from './case-core.js';
+import { initPortal } from './portal.js';
 import { findCards, zipTexts, parseWhatsApp, canonicalBank } from './proof-core.js';
 
 const $ = (id) => document.getElementById(id);
@@ -47,6 +48,7 @@ function saveCase(c) {
   renderCase();
 }
 let kase = loadCase();
+let portal = null; // set once the page is ready, below
 
 function renderCase() {
   const next = nextStep(kase);
@@ -60,6 +62,7 @@ function renderCase() {
     btn.closest('li').classList.toggle('is-next', id === next);
   }
   $('ack').value = kase.ack || $('ack').value;
+  $('portal-ack').value = kase.ack || $('portal-ack').value;
   if (kase.bank && !val('bank')) $('bank').value = kase.bank;
   $('total-line').textContent = kase.amount ? fill(T.totalLine, { amount: formatAmount(kase.amount) }) : '';
   renderReady();
@@ -88,6 +91,7 @@ function renderReady() {
   $('ready-list').replaceChildren(...items.flatMap(([k, v]) => [h('dt', { textContent: T.ready[k] }), h('dd', { textContent: v })]));
   $('ready-empty').hidden = items.length > 0;
   $('read-aloud').hidden = !items.length || !localVoice();
+  portal?.refresh();
 }
 
 // Read aloud only with a voice that runs on the phone: a network voice would send the amount and UTRs away.
@@ -105,15 +109,16 @@ $('read-aloud').addEventListener('click', () => {
   speechSynthesis.speak(Object.assign(new SpeechSynthesisUtterance(say), { voice, lang: voice.lang, rate: 0.85 }));
 });
 
+// One rule for the acknowledgement number, wherever it is typed: 14 digits, and the first digit explained.
+function saveAck(input) {
+  const info = ackInfo(input);
+  if (!info.ok) return T.ackInvalid;
+  saveCase(markDone({ ...kase, ack: info.value }, 'call', true)); // the number only arrives after the call, so step 1 is done
+  return `${T.ackSaved} ${{ portal: T.portal.ackPortal, call: T.portal.ackCall, other: T.portal.ackOther }[info.kind]}`;
+}
 $('ack-save').addEventListener('click', () => {
-  const ack = val('ack').replace(/\s/g, '');
-  if (!/^\d{14}$/.test(ack)) {
-    $('ack-status').textContent = T.ackInvalid;
-    $('ack').focus();
-    return;
-  }
-  saveCase(markDone({ ...kase, ack }, 'call', true)); // the number only arrives after the call, so step 1 is done
-  $('ack-status').textContent = T.ackSaved;
+  $('ack-status').textContent = saveAck(val('ack'));
+  if (!ackInfo(val('ack')).ok) $('ack').focus();
 });
 
 // ---------- Step 2: proof: files or pasted text -> cards -> case ----------
@@ -462,7 +467,9 @@ $('clear').addEventListener('click', () => {
   cards = [];
   base = {};
   micStatus.textContent = micHint;
-  for (const id of ['mic-interim', 'doc-status', 'ack-status', 'ocr-status', 'form-status']) $(id).textContent = '';
+  for (const id of ['mic-interim', 'doc-status', 'ack-status', 'ocr-status', 'form-status', 'walk-status', 'portal-ack-status']) $(id).textContent = '';
+  $('portal-ack').value = '';
+  portal.clear();
   $('cards').replaceChildren();
   form.reset();
   for (const id of ['contacts', 'sms', 'bank', 'ack']) $(id).value = '';
@@ -471,6 +478,19 @@ $('clear').addEventListener('click', () => {
   $('doc').replaceChildren();
   saveCase({});
   $('clear-status').textContent = T.caseCleared;
+});
+
+// Step 4: the portal walk-through, with the case's values ready to copy.
+portal = initPortal({
+  T,
+  saveAck,
+  getValues: () => ({
+    when: kase.lossAt ? formatDate(kase.lossAt, LANG) : '',
+    amount: kase.amount || '',
+    utrs: kase.utrs || [],
+    bank: kase.bank || '',
+    scammer: scammerIds(),
+  }),
 });
 
 renderCase();

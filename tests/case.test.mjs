@@ -64,3 +64,11 @@ test('payment dates from bank SMS become ISO dates, or nothing', async () => {
   assert.equal(toIso('31/02/2026'), '', 'impossible dates are refused');
   assert.equal(toIso('no date here'), '');
 });
+
+test('acknowledgement numbers: 14 digits; the first digit says portal or 1930', async () => {
+  const { ackInfo } = await import('../static/case-core.js');
+  assert.deepEqual(ackInfo('3191 0280 0123 45'), { ok: true, value: '31910280012345', kind: 'call' });
+  assert.equal(ackInfo('21910280012345').kind, 'portal');
+  assert.equal(ackInfo('51910280012345').kind, 'other', 'a 14-digit number with another prefix is kept but flagged');
+  for (const bad of ['', '1234', '319102800123456', '3191028001234a', 'MR2026AB1234']) assert.equal(ackInfo(bad).ok, false, bad);
+});

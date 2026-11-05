@@ -272,6 +272,45 @@ await confirmCards(rp, ['when', 'utr', 'payee', 'bank']);
 let c = await savedCase(rp);
 check(c.amount === '13499.50' && c.utrs?.length === 2 && c.lossAt === '2026-10-28' && ['State Bank of India', 'HDFC Bank'].includes(c.bank), 'proof: amount, UTRs, date and bank saved to the case');
 check((await rp.locator('.card[data-kind="utr"] .card-source').first().innerText()).includes('Refno 482910384756'), 'proof: each card shows the line it came from');
+
+// Portal copilot: one stage at a time, the case's values to copy, evidence under 5 MB, the ack number.
+await rp.evaluate("navigator.clipboard.writeText = (t) => { window.__copied = t; return Promise.resolve(); }");
+check((await rp.innerText('#stage-count')) === 'Stage 1 of 7' && (await rp.locator('#stages > .stage:visible').count()) === 1, 'portal: one stage at a time');
+await rp.click('#stage-next');
+await rp.click('#stage-next');
+const incident = rp.locator('#stages > .stage[data-stage="2"]');
+await incident.getByRole('button', { name: /Copy: Amount lost/ }).click();
+check((await rp.evaluate('window.__copied')) === '13499.50', 'portal: Copy gives the amount from the case');
+await incident.getByRole('button', { name: /Copy: Transaction IDs \(UTR\) 773829104857/ }).click();
+check((await rp.evaluate('window.__copied')) === '773829104857' && (await rp.innerText('#walk-status')).includes('773829104857'), 'portal: each UTR has its own Copy button, and copying is announced');
+await rp.click('#stage-next');
+await rp.locator('#stages > .stage[data-stage="3"]').getByRole('button', { name: /refund221@ybl/ }).click();
+check((await rp.evaluate('window.__copied')) === 'refund221@ybl', "portal: the scammer's UPI ID from a confirmed card can be copied");
+await rp.click('#stage-next');
+await rp.click('#stage-next');
+const big = Buffer.from(await rp.evaluate(() => {
+  const c = Object.assign(document.createElement('canvas'), { width: 2600, height: 2600 });
+  const ctx = c.getContext('2d');
+  const img = ctx.createImageData(2600, 2600);
+  for (let i = 0; i < img.data.length; i++) img.data[i] = (i % 4 === 3) ? 255 : Math.floor(Math.random() * 256);
+  ctx.putImageData(img, 0, 0);
+  return c.toDataURL('image/png').split(',')[1];
+}), 'base64');
+check(big.length > 5 * 1024 * 1024, `evidence: test image is over 5 MB (${(big.length / 1048576).toFixed(1)} MB)`);
+await rp.setInputFiles('#evidence', { name: 'photo.png', mimeType: 'image/png', buffer: big });
+await rp.locator('#evidence-list a').waitFor({ timeout: 60000 });
+const [download] = await Promise.all([rp.waitForEvent('download'), rp.click('#evidence-list a')]);
+const dlPath = await download.path();
+const dlSize = (await import('node:fs')).statSync(dlPath).size;
+check(dlSize > 0 && dlSize < 5 * 1024 * 1024 && download.suggestedFilename() === 'golden-hour-evidence-01.jpg', `evidence: an image over 5 MB comes out as a JPEG under 5 MB (${(dlSize / 1048576).toFixed(2)} MB)`);
+await rp.click('#stage-next');
+check((await rp.innerText('#stage-count')) === 'Stage 7 of 7' && await rp.locator('#stage-next').isDisabled(), 'portal: last stage reached; Next is disabled');
+await rp.fill('#portal-ack', '2191028001');
+await rp.click('#portal-ack-save');
+check((await rp.innerText('#portal-ack-status')).includes('14 digits'), 'portal ack: an invalid number is rejected with a helpful message');
+await rp.fill('#portal-ack', '3191 0280 0123 45');
+await rp.click('#portal-ack-save');
+check((await rp.innerText('#portal-ack-status')).includes('Starts with 3: a complaint registered by calling 1930') && (await savedCase(rp)).ack === '31910280012345', 'portal ack: saved, and the prefix is explained');
 check(!!c.done?.proof && (await rp.locator('#step-block.is-next').count()) === 1, 'proof: step marked done and the next step moves on');
 const ready = await rp.innerText('#ready-list');
 check(ready.includes('Rs 13,499.50') && ready.includes('482910384756') && ready.includes('refund221@ybl'), 'call card: amount, UTRs and the scammer UPI ID shown');
@@ -366,6 +405,10 @@ check(await cp.evaluate('window.__started.local === false'), 'mic: after consent
 await cp.click('.report-form > button.primary');
 await cp.locator('#doc').waitFor();
 check((await cp.innerText('#doc')).includes('विषय: Rs 13,499.50 की ऑनलाइन वित्तीय धोखाधड़ी की शिकायत'), 'letter: Hindi letter');
+for (let i = 0; i < 6; i++) await cp.click('#stage-next');
+await cp.fill('#portal-ack', '21910280012345');
+await cp.click('#portal-ack-save');
+check((await cp.innerText('#portal-ack-status')).includes('2 से शुरू: पोर्टल पर दर्ज शिकायत'), 'portal ack: prefix 2 explained in Hindi');
 await cctx.close();
 
 // 8. Proof from files: two screenshots picked, two screenshots shared, a WhatsApp .zip export.
@@ -409,7 +452,7 @@ await fp.goto(`${BASE}/`);
 await fp.evaluate('navigator.serviceWorker.ready');
 await fp.goto(`${BASE}/help/`);
 await fp.locator('#files').waitFor({ state: 'attached' });
-check(await fp.locator('label.file-pick').isVisible(), 'proof: Choose screenshots button shown');
+check(await fp.locator('label[for="files"]').isVisible(), 'proof: Choose screenshots button shown');
 await fp.setInputFiles('#files', [
   { name: 'sms1.png', mimeType: 'image/png', buffer: img1 },
   { name: 'sms2.png', mimeType: 'image/png', buffer: img2 },

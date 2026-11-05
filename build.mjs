@@ -71,6 +71,7 @@ function journeyStrings(s) {
       'ocrFailed', 'ocrSlow', 'zipFailed', 'noneFound', 'kinds', 'fromLine', 'correct', 'wrong', 'edit', 'saveEdit',
       'confirmed', 'leftOut', 'totalLine']),
     steps: Object.fromEntries(h.steps.map((st) => [st.id, st.title])),
+    portal: pick(s.portal, ['stageN', 'copy', 'copied', 'notYet', 'evidenceReady', 'evidenceFail', 'ackPortal', 'ackCall', 'ackOther']),
   };
 }
 
@@ -115,7 +116,41 @@ function stepExtra(s, p, id) {
           </section>
         </div>`;
   }
-  if (id === 'portal') return `\n        <p class="portal">${ext(h.portalLink, 'cybercrime.gov.in')}</p>`;
+  if (id === 'portal') {
+    const w = s.portal;
+    // Values each stage offers to copy (filled by portal.js from the case); evidence and ack get their own tools.
+    const extra = [
+      '', '', '<div class="stage-values" data-values="when,amount,utrs,bank"></div>', '<div class="stage-values" data-values="scammer"></div>', '',
+      `<div class="js-only" hidden><label for="evidence" class="file-pick secondary">${esc(w.evidenceChoose)}</label>
+            <input id="evidence" class="visually-hidden" type="file" accept="image/*" multiple>
+            <ul id="evidence-list" class="evidence-list"></ul></div>`,
+      `<div class="js-only" hidden><label for="portal-ack">${esc(h.ackLabel)}</label>
+            <div class="inline-field"><input id="portal-ack" type="text" inputmode="numeric" autocomplete="off" maxlength="17" spellcheck="false">
+            <button type="button" id="portal-ack-save" class="secondary">${esc(h.ackSave)}</button></div>
+            <p id="portal-ack-status" class="status" role="status" aria-live="polite"></p></div>`,
+    ];
+    const stages = w.stages.map((st, i) => `
+            <li class="stage" data-stage="${i}">
+              <h4>${esc(st.title)}</h4>
+              <p>${esc(st.body)}</p>
+              ${extra[i]}
+            </li>`).join('');
+    return `
+        <p class="portal">${ext(h.portalLink, 'cybercrime.gov.in')}</p>
+        <section id="walk" class="walk" aria-labelledby="walk-title">
+          <h3 id="walk-title">${esc(w.walk)}</h3>
+          <p class="src">${esc(w.checked)}</p>
+          <ol id="stages" class="stages" role="list">${stages}
+          </ol>
+          <div class="stage-nav js-only" hidden>
+            <button type="button" id="stage-back" class="secondary">${esc(w.back)}</button>
+            <span id="stage-count" class="stage-count" aria-live="polite"></span>
+            <button type="button" id="stage-next" class="primary">${esc(w.next)}</button>
+          </div>
+          <p id="walk-status" class="status" role="status" aria-live="polite"></p>
+          <p>${ext(h.portalLink, w.open)}</p>
+        </section>`;
+  }
   return '';
 }
 
