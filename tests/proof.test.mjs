@@ -125,3 +125,15 @@ test('cards: each value with its source line; paid UPI IDs and bank helplines ar
   assert.ok(cards.find((c) => c.kind === 'utr').source.includes('773829104857'));
   assert.equal(new Set(cards.filter((c) => c.group === 0).map((c) => c.kind)).size, 4, 'one payment groups its four fields');
 });
+
+test('cards: two payments of the same amount are two amounts; the same payment shared twice is one', () => {
+  const a = 'Rs.5,000.00 debited from a/c **4821 on 28-Oct-26 to VPA refund221@ybl (UPI Ref No 773829104857). -HDFC Bank';
+  const b = 'Rs.5,000.00 debited from a/c **4821 on 28-Oct-26 to VPA refund221@ybl (UPI Ref No 773829104999). -HDFC Bank';
+  const of = (cards, kind) => cards.filter((c) => c.kind === kind).map((c) => c.value);
+  const two = findCards([a, b]);
+  assert.deepEqual(of(two, 'amount'), ['5,000.00', '5,000.00'], 'equal amounts in different payments are both kept');
+  assert.deepEqual(of(two, 'utr'), ['773829104857', '773829104999']);
+  assert.deepEqual(of(two, 'bank'), ['HDFC Bank'], 'a bank is still one card');
+  const same = findCards([a, a]);
+  assert.deepEqual(of(same, 'amount'), ['5,000.00'], 'one screenshot shared twice is not two payments');
+});

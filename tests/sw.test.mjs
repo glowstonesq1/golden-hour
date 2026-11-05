@@ -38,6 +38,7 @@ class FakeCache {
 }
 
 function loadWorker({ online = true } = {}) {
+  const clock = { now: 1_000_000, timers: [] };
   const handlers = {};
   const stores = new Map();
   const caches = {
@@ -54,6 +55,8 @@ function loadWorker({ online = true } = {}) {
   };
   const context = vm.createContext({
     self, caches, URL,
+    Date: { now: () => clock.now },
+    setTimeout: (fn, ms) => clock.timers.push({ fn, at: clock.now + ms }),
     Request: class { constructor(url, init) { this.url = url; Object.assign(this, init); } },
     Response: FakeResponse,
     fetch: async (r) => { fetched.push(r.url); if (!online) throw new TypeError('offline'); return new FakeResponse(`network ${r.url}`); },
@@ -76,7 +79,13 @@ function loadWorker({ online = true } = {}) {
     handlers.message({ data: { type: 'take-share' }, ports: [{ postMessage: (m) => { reply = m; } }] });
     return reply?.text;
   }
-  return { caches, stores, fetched, lifecycle, dispatch, take, handlers };
+  // Moves the fake clock on and runs the timers that are due.
+  function advance(ms) {
+    clock.now += ms;
+    for (const t of clock.timers.filter((x) => x.at <= clock.now)) t.fn();
+    clock.timers = clock.timers.filter((x) => x.at > clock.now);
+  }
+  return { caches, stores, fetched, lifecycle, dispatch, take, handlers, advance };
 }
 
 const post = (path, fields, { broken = false } = {}) => ({
@@ -188,6 +197,23 @@ test('a share lives only in memory, is handed over once, and never touches Cache
   assert.deepEqual(await w.caches.keys(), [], 'nothing written to Cache Storage');
   assert.equal(w.take(), 'Your KYC expires');
   assert.equal(w.take(), '', 'a second page never sees it');
+});
+
+test('a share expires after two minutes, whether or not a page asks for it', async () => {
+  const w = loadWorker();
+  await w.dispatch(post('/share-target/', { text: 'Your KYC expires' }));
+  w.advance(2 * 60 * 1000 + 1);
+  assert.equal(w.take(), '', 'an old share is never handed over');
+  await w.dispatch(post('/share-target/', { text: 'second' }));
+  w.advance(60 * 1000);
+  assert.equal(w.take(), 'second', 'a fresh share still is');
+});
+
+test('the OCR glue is served from the app cache, not the OCR cache', async () => {
+  const w = loadWorker();
+  await w.lifecycle('install');
+  await w.dispatch(get('/ocr.js', 'cors'));
+  assert.ok(!(await (await w.caches.open('gh-ocr-7.0.0')).match('/ocr.js')), '/ocr.js never lands in the cache that survives versions');
 });
 
 test('requests to other sites are left alone', async () => {
