@@ -13,6 +13,8 @@ const status = $('status');
 const strings = $('strings')?.dataset;
 const labels = strings?.labels ? JSON.parse(strings.labels) : null;
 let check = null; // loaded only on the Check page
+let rules = null;
+let lastOut = null; // the verdict on screen, including any cloud signals
 
 // A share is held only in the service worker's memory, never in storage. Every page asks for it once,
 // which also clears it; the Check page shows it when it was opened by a share. If the browser stopped
@@ -34,7 +36,13 @@ function takeShared() {
 
 const typeOf = (out) => labels.types[out.type ?? 'unknown'];
 
+// Up to three reasons: what the cloud check found first, then the phone's own signs. Each is one fixed sentence.
+function reasonText([from, key], days) {
+  return from === 'cloud' ? labels.cloud.signals[key].replace('{days}', days) : labels.signNames[key];
+}
+
 function show(out) {
+  lastOut = out;
   const v = labels.verdicts[out.verdict];
   $('verdict').textContent = v.title;
   $('verdict-body').textContent = v.body;
@@ -42,10 +50,64 @@ function show(out) {
   const t = out.verdict === 'none' ? null : typeOf(out);
   $('type').textContent = t ? t.name : '';
   $('rule').textContent = t ? t.rule : '';
-  $('found').replaceChildren(...out.signs.map((k) => Object.assign(document.createElement('li'), { textContent: labels.signNames[k] })));
-  $('signs-title').hidden = out.signs.length === 0;
+  const reasons = (out.reasons || out.signs.map((k) => ['local', k])).slice(0, 3);
+  $('found').replaceChildren(...reasons.map((r) => Object.assign(document.createElement('li'), { textContent: reasonText(r, 30) })));
+  $('signs-title').hidden = reasons.length === 0;
   $('result').hidden = false;
   $('fallback').hidden = true;
+}
+
+// ---------- The cloud link check: only on tap, only the stripped link, never needed ----------
+const worker = strings?.worker || '';
+let cloudUrl = '';
+let shotUrl = '';
+
+function offerCloud(text, out) {
+  $('video-note').hidden = !out.video;
+  cloudUrl = rules.firstLink(text);
+  $('cloud').hidden = !worker || !cloudUrl;
+  $('cloud-result').hidden = true;
+  $('cloud-status').textContent = '';
+  $('cloud-run').disabled = false;
+}
+
+const fromBase64 = (b64) => new Blob([Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))], { type: 'image/jpeg' });
+
+async function runCloud() {
+  const L = labels.cloud;
+  const local = check(msg.value.trim());
+  $('cloud-run').disabled = true;
+  $('cloud-status').textContent = L.running;
+  try {
+    const res = await fetch(`${worker}/check`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ url: cloudUrl }), // scheme, host and path only; the worker strips again
+      signal: AbortSignal.timeout(45000),
+    });
+    if (!res.ok) {
+      $('cloud-status').textContent = res.status === 429 ? L.busy : res.status === 403 ? L.blocked : res.status === 503 ? L.unavailable : L.failed;
+      return;
+    }
+    const data = await res.json();
+    if (shotUrl) URL.revokeObjectURL(shotUrl);
+    shotUrl = typeof data.screenshot === 'string' && data.screenshot ? URL.createObjectURL(fromBase64(data.screenshot)) : '';
+    $('cloud-shot').hidden = !shotUrl;
+    if (shotUrl) $('cloud-shot').src = shotUrl;
+    $('cloud-final').textContent = String(data.finalUrl || '');
+    const chain = Array.isArray(data.chain) ? data.chain.map(String) : [];
+    $('cloud-chain').replaceChildren(...chain.map((u) => Object.assign(document.createElement('li'), { textContent: u })));
+    $('cloud-chain-box').hidden = chain.length < 2;
+    const combined = rules.combine(local, Array.isArray(data.signals) ? data.signals.map(String) : []);
+    show(combined);
+    $('cloud-clean').hidden = combined.cloud.length > 0 || combined.verdict === 'likely';
+    $('cloud-result').hidden = false;
+    $('cloud-status').textContent = '';
+  } catch {
+    $('cloud-status').textContent = L.unavailable; // no worker, offline or too slow: the phone's result stands
+  } finally {
+    $('cloud-run').disabled = false;
+  }
 }
 
 function runCheck() {
@@ -56,7 +118,9 @@ function runCheck() {
     return;
   }
   status.textContent = '';
-  show(check(text));
+  const out = check(text);
+  show(out);
+  offerCloud(text, out);
   $('result').focus();
 }
 
@@ -69,7 +133,7 @@ async function askFamily() {
   }
   let full = `${strings.intro}\n\n${text}`;
   if (check) {
-    const out = check(text);
+    const out = lastOut && !$('result').hidden ? lastOut : check(text);
     const t = out.verdict === 'none' ? '' : ` (${typeOf(out).name})`;
     full = `${strings.intro}\n\n${labels.intro} ${labels.verdicts[out.verdict].title}${t}\n\n${text}`;
   }
@@ -155,16 +219,22 @@ if (msg && ask && run && status && strings && labels) {
   msg.addEventListener('input', () => {
     $('result').hidden = true;
     $('fallback').hidden = false;
+    $('cloud').hidden = true;
+    $('video-note').hidden = true;
   });
   import('/rules.js')
-    .then(async (rules) => {
+    .then(async (mod) => {
+      rules = mod;
       check = rules.check;
       run.hidden = false;
       run.addEventListener('click', runCheck);
+      $('cloud-run').addEventListener('click', runCloud);
       const { text } = await shared;
       if (opened && text && !msg.value) {
         msg.value = text;
-        show(check(text));
+        const out = check(text);
+        show(out);
+        offerCloud(text, out);
         $('result').focus(); // so screen readers announce the verdict that appeared without a tap
       }
     })

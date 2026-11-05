@@ -16,9 +16,17 @@ export const PAGES = ['', 'help/', 'check/', 'report/', 'case/', 'terms/', 'priv
 // frame-ancestors only works as a header, so the meta copy leaves it out.
 // 'wasm-unsafe-eval' lets the on-device OCR (vendored Tesseract.js) compile its WebAssembly. It allows
 // compiling WebAssembly only: JavaScript eval and new Function stay blocked, and scripts stay 'self'.
-export const CSP_META =
-  "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self'; font-src 'self'; " +
-  "connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'";
+//
+// The optional cloud link checker (worker/). Empty until it is deployed; then set its origin here and copy
+// the resulting policy into vercel.json (a test checks they match). With it set, connect-src allows exactly
+// that origin (to send the stripped link) and img-src allows blob: (to show its screenshot). GH_WORKER_URL
+// overrides it for local tests only.
+export const WORKER_ORIGIN = '';
+export const workerOrigin = process.env.GH_WORKER_URL ? new URL(process.env.GH_WORKER_URL).origin : WORKER_ORIGIN;
+export const cspFor = (origin) =>
+  `default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self'${origin ? ' blob:' : ''}; font-src 'self'; ` +
+  `connect-src 'self'${origin ? ` ${origin}` : ''}; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'`;
+export const CSP_META = cspFor(workerOrigin);
 
 export const esc = (s) =>
   String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -313,7 +321,8 @@ function body(s, lang, page, banks) {
   if (MOVED[page]) return movedPage(s, p, page);
   if (page === 'check/') {
     const signs = s.check.signs.map((x) => `<li>${esc(x)}</li>`).join('');
-    const labels = { intro: s.check.resultIntro, verdicts: s.check.verdicts, types: s.check.types, signNames: s.check.signNames };
+    const c = s.check.cloud;
+    const labels = { intro: s.check.resultIntro, verdicts: s.check.verdicts, types: s.check.types, signNames: s.check.signNames, cloud: c };
     // The result is filled by app.js with textContent only; without JavaScript the static signs list stays.
     return `${callButton(s)}
     <h1>${esc(s.check.title)}</h1>
@@ -329,6 +338,20 @@ function body(s, lang, page, banks) {
       <ul id="found" class="signs"></ul>
       <p class="disclaimer">${esc(s.check.disclaimer)} <a href="${p}terms/">${esc(s.footer.terms)}</a></p>
     </section>
+    <p id="video-note" class="hint" hidden>${esc(s.check.videoNote)}</p>
+    <section id="cloud" class="cloud" hidden aria-labelledby="cloud-title">
+      <h3 id="cloud-title">${esc(c.title)}</h3>
+      <p class="hint" id="cloud-consent">${esc(c.consent)}</p>
+      <button type="button" id="cloud-run" class="secondary" aria-describedby="cloud-consent">${esc(c.run)}</button>
+      <p id="cloud-status" class="status" role="status" aria-live="polite"></p>
+      <div id="cloud-result" hidden>
+        <img id="cloud-shot" class="cloud-shot" alt="${esc(c.shotAlt)}" width="390" height="844" hidden>
+        <p class="cloud-final"><span>${esc(c.finalUrl)}</span> <span id="cloud-final" class="mono"></span></p>
+        <div id="cloud-chain-box" hidden><p>${esc(c.chain)}</p><ol id="cloud-chain" class="mono"></ol></div>
+        <p id="cloud-clean" class="cloud-clean" hidden>${esc(c.clean)}</p>
+        <p class="hint">${esc(c.hide)}</p>
+      </div>
+    </section>
     <div id="fallback">
       <p>${esc(s.check.fallback)}</p>
       <ul class="signs">${signs}</ul>
@@ -338,7 +361,12 @@ function body(s, lang, page, banks) {
       <a class="secondary" href="${p}help/">${esc(s.check.paid)}</a>
     </div>
     <p id="status" class="status" role="status" aria-live="polite"></p>
-    <div id="strings" hidden data-copied="${esc(s.check.copied)}" data-copy-fail="${esc(s.check.copyFail)}" data-empty="${esc(s.check.empty)}" data-intro="${esc(s.check.shareIntro)}" data-labels="${esc(JSON.stringify(labels))}"></div>`;
+    <aside class="note">
+      <h2>${esc(s.check.noLossTitle)}</h2>
+      <p>${esc(s.check.noLossBody)}</p>
+      <p>${ext(s.help.noLossLink, 'sancharsaathi.gov.in')}</p>
+    </aside>
+    <div id="strings" hidden data-worker="${esc(workerOrigin)}" data-copied="${esc(s.check.copied)}" data-copy-fail="${esc(s.check.copyFail)}" data-empty="${esc(s.check.empty)}" data-intro="${esc(s.check.shareIntro)}" data-labels="${esc(JSON.stringify(labels))}"></div>`;
   }
   const doc = page === 'terms/' ? s.terms : s.privacy;
   return `${mtNote(s)}

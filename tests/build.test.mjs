@@ -96,7 +96,7 @@ test('Vercel headers: strict CSP and no network destinations other than self', a
   assert.match(csp, /connect-src 'self';/);
   assert.match(csp, /frame-ancestors 'none'/);
   assert.doesNotMatch(csp, /unsafe-inline|(?<!wasm-)unsafe-eval|\*/, "no inline scripts, no JavaScript eval, no wildcards");
-  assert.ok(csp.startsWith(CSP_META), 'meta CSP and header CSP drifted apart');
+  assert.ok(csp.startsWith(CSP_META), 'meta CSP and header CSP drifted apart (after setting WORKER_ORIGIN, copy the policy into vercel.json)');
   assert.equal(headers['Referrer-Policy'], 'no-referrer');
 });
 
@@ -199,4 +199,16 @@ test('rule 12: the no-fee recovery warning appears once on each journey page, an
     assert.equal(html.split(esc(warn)).length - 1, 1, `${lang}: warning shown exactly once`);
   }
   for (const { path } of pages) assert.doesNotMatch(await read(path), /google\.|bing\.com|duckduckgo|search\?q=/i, path);
+});
+
+test('cloud link check: off unless a worker origin is set; then CSP widens by exactly that origin and blob: images', async () => {
+  const { cspFor, WORKER_ORIGIN } = await import('../build.mjs');
+  assert.equal(WORKER_ORIGIN, '', 'no worker is configured in the repository yet');
+  assert.equal(cspFor(''), CSP_META);
+  const withWorker = cspFor('https://golden-hour-link-check.example.workers.dev');
+  assert.match(withWorker, /connect-src 'self' https:\/\/golden-hour-link-check\.example\.workers\.dev;/);
+  assert.match(withWorker, /img-src 'self' blob:;/);
+  assert.equal(withWorker.replace(" https://golden-hour-link-check.example.workers.dev", '').replace(' blob:', ''), CSP_META, 'nothing else changes');
+  const html = await read('check/index.html');
+  assert.ok(html.includes('data-worker=""') && /<section id="cloud" class="cloud" hidden/.test(html));
 });

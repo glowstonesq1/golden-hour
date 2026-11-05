@@ -65,7 +65,7 @@ Hand-written cases that code review showed the first rules got wrong. Used to fi
 
 Genuine messages flagged: r-g-12 (careful: otp)
 
-Speed: 0.040 ms per check in Node on a desktop CPU. Not yet measured on a low-end Android phone.
+Speed: 0.057 ms per check in Node on a desktop CPU. Not yet measured on a low-end Android phone.
 
 # Proof from screenshots (OCR)
 

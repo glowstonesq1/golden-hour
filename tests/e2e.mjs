@@ -538,6 +538,99 @@ await mp.locator('[data-done="call"][aria-pressed="true"]').waitFor();
 check(!/[०-९]/.test(await mp.innerText('[data-done="call"]')), 'Marathi: dates use Latin digits');
 await mctx.close();
 
+// 9. Check a link or message. Without a worker the phone's result stands alone; with one (a local stub of
+// worker/), the cloud check runs only on tap and receives only the stripped link.
+const lctx = await browser.newContext({ viewport: { width: 360, height: 780 } });
+const lp = await lctx.newPage();
+lp.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+await lp.goto(`${BASE}/check/`);
+await lp.locator('#run').waitFor();
+await lp.fill('#msg', 'Your SBI account is blocked. Verify now https://bit.ly/OtP1?id=9123456780');
+await lp.click('#run');
+check(await lp.locator('#cloud').isHidden() && (await lp.textContent('#verdict')) === 'Likely scam', 'no worker configured: no cloud check offered; the phone gives the verdict');
+check(await lp.locator('.note a[href*="sancharsaathi"]').isVisible(), 'Check links to Chakshu for reporting when no money was lost');
+await lp.fill('#msg', 'Watch this https://youtu.be/abc123');
+await lp.click('#run');
+check(await lp.locator('#video-note').isVisible(), 'video links: says plainly that a video itself cannot be judged');
+await lctx.close();
+
+const http = await import('node:http');
+const shotPage = await browser.newPage();
+await shotPage.setContent('<div id="s" style="width:120px;height:200px;background:#d33">Fake KYC page</div>');
+const jpeg = (await shotPage.locator('#s').screenshot({ type: 'jpeg' })).toString('base64');
+await shotPage.close();
+const received = [];
+const APP_PORT = 8124;
+const STUB_PORT = 8125;
+const stub = http.createServer((req, res) => {
+  const cors = { 'access-control-allow-origin': `http://127.0.0.1:${APP_PORT}`, 'access-control-allow-headers': 'content-type', vary: 'Origin' };
+  if (req.method === 'OPTIONS') { res.writeHead(204, cors).end(); return; }
+  let raw = '';
+  req.on('data', (d) => { raw += d; });
+  req.on('end', () => {
+    const { url } = JSON.parse(raw || '{}');
+    received.push(url);
+    if (url.includes('busy')) { res.writeHead(429, cors).end('{}'); return; }
+    const body = url.includes('OtP')
+      ? { finalUrl: 'https://sbi-verify.example/kyc', chain: [url, 'https://sbi-verify.example/kyc'], screenshot: jpeg, signals: ['otpForm', 'youngDomain'] }
+      : { finalUrl: url, chain: [url], screenshot: jpeg, signals: [] };
+    res.writeHead(200, { ...cors, 'content-type': 'application/json' }).end(JSON.stringify(body));
+  });
+});
+await new Promise((ok) => stub.listen(STUB_PORT, '127.0.0.1', ok));
+process.env.GH_WORKER_URL = `http://127.0.0.1:${STUB_PORT}`;
+const { build: buildApp } = await import('../build.mjs');
+const { serve } = await import('./serve.mjs');
+const { mkdtemp } = await import('node:fs/promises');
+const workerDist = await mkdtemp((await import('node:path')).join((await import('node:os')).tmpdir(), 'gh-worker-'));
+await buildApp(workerDist);
+const appServer = await serve(workerDist, APP_PORT);
+const WBASE = `http://127.0.0.1:${APP_PORT}`;
+
+const wctx = await browser.newContext({ viewport: { width: 360, height: 780 } });
+const wp = await wctx.newPage();
+wp.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+wp.on('pageerror', (e) => errors.push(String(e)));
+await wp.goto(`${WBASE}/check/`);
+await wp.locator('#run').waitFor();
+await wp.fill('#msg', 'Your SBI account is blocked. Verify now https://bit.ly/OtP1?id=9123456780#otp');
+await wp.click('#run');
+check(await wp.locator('#cloud').isVisible() && (await wp.innerText('#cloud-consent')).includes('without anything after ? or #'), 'cloud: offered with a clear consent line when the message has a link');
+check(received.length === 0, 'cloud: nothing is sent before the person taps');
+await wp.click('#cloud-run');
+await wp.locator('#cloud-result').waitFor();
+check(received[0] === 'https://bit.ly/OtP1', `cloud: only the stripped link is sent (${received[0]})`);
+check(await wp.locator('#cloud-shot').isVisible() && (await wp.getAttribute('#cloud-shot', 'src')).startsWith('blob:'), 'cloud: shows a screenshot of where the link goes');
+check((await wp.innerText('#cloud-final')) === 'https://sbi-verify.example/kyc' && (await wp.locator('#cloud-chain li').count()) === 2, 'cloud: final address and the redirect chain');
+const reasons = await wp.locator('#found li').allInnerTexts();
+check(reasons.length <= 3 && reasons[0] === 'The page asks for an OTP', `cloud: at most three reasons, the page's request first (${reasons.length})`);
+check((await wp.textContent('#verdict')) === 'Likely scam' && await wp.locator('#cloud-clean').isHidden(), 'cloud: verdict stays likely scam with its reasons');
+
+await wp.fill('#msg', 'Hello, our new shop is open: https://shop.example/clean');
+await wp.click('#run');
+const before = await wp.textContent('#verdict');
+await wp.click('#cloud-run');
+await wp.locator('#cloud-result').waitFor();
+check((await wp.textContent('#verdict')) === before && before === 'No common scam signs found', 'cloud: a clean scan never upgrades a message to safe');
+check(await wp.locator('#cloud-clean').isVisible() && (await wp.innerText('#cloud-clean')) === 'We could not confirm it is safe.' && (await wp.innerText('#cloud-result')).includes('Scam pages can hide'), 'cloud: a clean scan says we could not confirm it is safe, and why');
+
+await wp.fill('#msg', 'Pay now https://pay.example/busy');
+await wp.click('#run');
+await wp.click('#cloud-run');
+await until(async () => (await wp.innerText('#cloud-status')).length > 0 && await wp.isEnabled('#cloud-run'));
+check((await wp.innerText('#cloud-status')).includes('limit for today') && (await wp.textContent('#verdict')).length > 0, 'cloud: over the daily cap, try later; the phone result stays');
+
+await new Promise((ok) => stub.close(ok));
+await wp.fill('#msg', 'Verify https://bit.ly/OtP2');
+await wp.click('#run');
+await wp.click('#cloud-run');
+await until(async () => (await wp.innerText('#cloud-status')).length > 0 && await wp.isEnabled('#cloud-run'), 10000);
+check((await wp.innerText('#cloud-status')).includes('not available right now') && (await wp.textContent('#verdict')).length > 0, 'cloud: worker absent, the app says so and keeps the phone result');
+await wctx.close();
+await new Promise((ok) => appServer.close(ok));
+// The stub's 429 (busy) and the stopped stub (refused) are what those checks test; Chrome logs both.
+errors.splice(0, errors.length, ...errors.filter((e) => !/Failed to load resource: (net::ERR_CONNECTION_REFUSED|the server responded with a status of 429)/.test(e)));
+
 // The vendored OCR engine prints its own tuning notices ("Warning: Parameter not found: ...") to stderr;
 // they are not page errors. Everything else still fails the run.
 errors.splice(0, errors.length, ...errors.filter((e) => !/^Warning: Parameter not found: /.test(e)));

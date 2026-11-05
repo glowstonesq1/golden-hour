@@ -125,8 +125,8 @@
     "totalLine": "Total lost (from the amounts you marked correct): {amount}"
   },
   "check": {
-    "title": "Check a message",
-    "label": "Paste the message here",
+    "title": "Check a link or message",
+    "label": "Paste the message or link",
     "run": "Check this message",
     "fallback": "The automatic check needs JavaScript. Until then, stop if a message:",
     "signs": [
@@ -217,8 +217,41 @@
       "shortLink": "A shortened link that hides where it goes",
       "unknownLink": "A link to a website that is not a known official site",
       "money": "Asks you to pay or send money",
-      "urgency": "Rushes or threatens you"
-    }
+      "urgency": "Rushes or threatens you",
+      "punycode": "A link with look-alike letters from another alphabet (punycode)",
+      "ipHost": "A link to a bare number address instead of a website name",
+      "riskyTld": "A link ending .vip, .icu or .cc, seen in fake traffic-fine messages",
+      "freeHost": "A link to a free website builder or host, which real companies rarely use"
+    },
+    "cloud": {
+      "title": "Where does this link really go?",
+      "consent": "To find out, we can send only this link, without anything after ? or #, to our checker. It opens the link in a separate browser far from your phone, and keeps no record of it.",
+      "run": "Check where it goes",
+      "running": "Checking. This can take up to half a minute.",
+      "unavailable": "The link checker is not available right now. The result above is from your phone only.",
+      "busy": "The link checker has reached its limit for today. Try later. The result above is from your phone only.",
+      "failed": "The link checker could not open this link. The result above is from your phone only.",
+      "blocked": "This link points to a private or local address, so it was not opened.",
+      "finalUrl": "It ends up at:",
+      "chain": "On the way it passed through:",
+      "shotAlt": "Screenshot of the page the link opens",
+      "clean": "We could not confirm it is safe.",
+      "hide": "Scam pages can hide from checkers like this one, so treat any request for money, an OTP or an app install as a scam.",
+      "reasons": "Why:",
+      "signals": {
+        "otpForm": "The page asks for an OTP",
+        "pinForm": "The page asks for a UPI PIN",
+        "cardForm": "The page asks for a card number or CVV",
+        "aadhaarForm": "The page asks for your Aadhaar number",
+        "passwordOffsite": "The page sends a password to a different website",
+        "apkDownload": "The link downloads an app file (.apk)",
+        "download": "The link downloads a file instead of opening a page",
+        "youngDomain": "The website was registered less than {days} days ago"
+      }
+    },
+    "videoNote": "We can check the link and the words around it, but we cannot judge whether a video itself is fake.",
+    "noLossTitle": "No money lost?",
+    "noLossBody": "Report the message or call on Chakshu (sancharsaathi.gov.in) so the number can be blocked."
   },
   "terms": {
     "title": "Terms",
@@ -239,6 +272,7 @@
       "There are no accounts, cookies, ads or analytics.",
       "Shares are handled on your phone by the installed app. If the app's stored files were cleared, open the app once before sharing; otherwise a share can reach our web host, which rejects it.",
       "Voice typing for the complaint letter: if your phone can turn speech into text by itself, it does. If not, Golden Hour asks you first; if you agree, your browser sends your voice to Google or Apple to turn it into text. Golden Hour never receives your voice.",
+      "Link check: only if you tap Check where it goes, the link (without anything after ? or #) is sent to our link checker on Cloudflare, which opens it in a browser there and keeps no log of it. Cloudflare's own systems may keep standard request records. Nothing else from your phone is sent.",
       "Links to cybercrime.gov.in, sancharsaathi.gov.in and your phone dialer open outside the app."
     ]
   },

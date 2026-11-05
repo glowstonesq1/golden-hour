@@ -1,0 +1,22 @@
+# Golden Hour link checker. Deploy steps: worker/README.md.
+name = "golden-hour-link-check"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+compatibility_flags = ["nodejs_compat"]
+
+browser = { binding = "BROWSER" }
+
+[[kv_namespaces]]
+binding = "LIMITS"
+id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+
+[vars]
+# The app's exact origin. Requests from anywhere else are refused.
+ALLOWED_ORIGIN = "https://golden-hour-olive.vercel.app"
+PER_IP_DAILY = "10"
+# Browser seconds per day across everyone; kept under the free plan's daily browser time.
+DAILY_BROWSER_SECONDS = "540"
+
+# No request logs or traces are kept by this worker. (Cloudflare's own platform defaults still apply.)
+[observability]
+enabled = false

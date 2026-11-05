@@ -213,6 +213,12 @@ details#paste summary { cursor: pointer; font-weight: 700; color: var(--accent);
 .mrm li { margin: 0.3rem 0; }
 .mrm-ack { font-weight: 750; }
 
+/* Check: where a link really goes */
+.cloud { margin: 1.25rem 0; padding: 1rem 1.25rem; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--line); }
+.cloud-shot { display: block; width: 100%; max-width: 20rem; height: auto; margin: 0.75rem 0; border: 1px solid var(--line); border-radius: 12px; }
+.mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.95rem; overflow-wrap: anywhere; }
+.cloud-clean { font-weight: 750; }
+
 .steps { list-style: none; counter-reset: step; padding: 0; margin: 1.5rem 0; }
 .steps li { counter-increment: step; position: relative; padding: 0 0 1.6rem 3.25rem; }
 .steps li::before {
