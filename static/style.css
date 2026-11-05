@@ -204,6 +204,15 @@ details#paste summary { cursor: pointer; font-weight: 700; color: var(--accent);
 .evidence-list { padding-left: 1.25rem; }
 .evidence-list li { margin: 0.4rem 0; }
 
+/* Claim held money: the recovery-scam warning stands out, the procedure reads as information */
+.warn { margin: 1rem 0; padding: 0.9rem 1rem; border-radius: 14px; border: 2px solid var(--ink); background: var(--surface); font-weight: 700; }
+.warn p { margin: 0; }
+.mrm { margin: 1rem 0; }
+.mrm h4 { margin: 1rem 0 0.25rem; font-size: 1.05rem; }
+.mrm-steps, .mrm ul { padding-left: 1.25rem; }
+.mrm li { margin: 0.3rem 0; }
+.mrm-ack { font-weight: 750; }
+
 .steps { list-style: none; counter-reset: step; padding: 0; margin: 1.5rem 0; }
 .steps li { counter-increment: step; position: relative; padding: 0 0 1.6rem 3.25rem; }
 .steps li::before {

@@ -72,3 +72,8 @@ test('acknowledgement numbers: 14 digits; the first digit says portal or 1930', 
   assert.equal(ackInfo('51910280012345').kind, 'other', 'a 14-digit number with another prefix is kept but flagged');
   for (const bad of ['', '1234', '319102800123456', '3191028001234a', 'MR2026AB1234']) assert.equal(ackInfo(bad).ok, false, bad);
 });
+
+test('refund request IDs: start with MR, letters and numbers only', () => {
+  assert.equal(sanitize({ mrmId: 'MR2026AB1234' }).mrmId, 'MR2026AB1234');
+  for (const bad of ['mr2026ab1234', 'XX2026AB1234', 'MR12', 'MR 2026', 'MR2026-AB']) assert.equal(sanitize({ mrmId: bad }).mrmId, undefined, bad);
+});

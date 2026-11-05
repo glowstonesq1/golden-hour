@@ -61,8 +61,8 @@
       {
         "id": "claim",
         "title": "Was your money held? Claim it",
-        "body": "If the police or the 1930 team tell you money was held in the account it went to, you can ask for it to be returned. No government body or genuine helper ever charges a fee to recover your money. Anyone who asks for one is another scammer.",
-        "source": ""
+        "body": "If the police or the 1930 team tell you money was held in the account it went to, you can ask for it to be returned on the Money Restoration portal.",
+        "source": "https://mrm-ncrp.mha.gov.in/"
       },
       {
         "id": "back",
@@ -434,5 +434,39 @@
       "notKnown": "[not known yet]",
       "more": "and {n} more"
     }
+  },
+  "mrm": {
+    "warn": "No government body or genuine helper ever charges a fee to recover your money. Anyone who asks for a fee, an OTP, your PAN or your bank login to get it back for you is another scammer. Never search online for recovery help.",
+    "title": "How to claim on the Money Restoration portal",
+    "checked": "As reported on 4 November 2026. The portal may change; follow what it shows.",
+    "steps": [
+      "Sign in at mrm-ncrp.mha.gov.in with the mobile number you used for the complaint, and the OTP it sends.",
+      "Choose Raise Refund Request.",
+      "Enter your 14-digit acknowledgement number. The portal shows the amount held.",
+      "Enter the bank account and IFSC where the money should come back.",
+      "Enter your PAN.",
+      "Type the CAPTCHA and press Submit yourself. You get a request ID that starts with MR."
+    ],
+    "readyTitle": "Have these ready. Golden Hour never saves them.",
+    "ready": [
+      "Your 14-digit acknowledgement number",
+      "Your PAN card",
+      "The bank account number and IFSC where the money should come back",
+      "The phone with the mobile number you used for the complaint, for the OTP"
+    ],
+    "yourAck": "Yours: {ack}",
+    "fir": "As reported: an FIR is needed only when more than Rs 50,000 is held in a single account. If the police ask you to file one, do.",
+    "timelineTitle": "What happens next: targets in the procedure, not guarantees",
+    "timeline": [
+      "The investigating officer tells the holder of the account the money went to, within 7 days.",
+      "That account holder has 15 days to respond.",
+      "Your bank credits you within 15 days of the official notice to release the money."
+    ],
+    "hold": "A bank may lift a hold after 90 days if no legal direction reaches it. That is not a refund promise, so apply as soon as you hear money was held.",
+    "open": "Open mrm-ncrp.mha.gov.in",
+    "idLabel": "Refund request ID (starts with MR)",
+    "idSave": "Save",
+    "idSaved": "Saved to your case on this phone.",
+    "idInvalid": "That does not look right. The request ID starts with MR, followed by letters and numbers."
   }
 }

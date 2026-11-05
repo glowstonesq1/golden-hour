@@ -74,6 +74,7 @@ function journeyStrings(s, banks) {
     steps: Object.fromEntries(h.steps.map((st) => [st.id, st.title])),
     portal: pick(s.portal, ['stageN', 'copy', 'copied', 'notYet', 'evidenceReady', 'evidenceFail', 'ackPortal', 'ackCall', 'ackOther']),
     bank: pick(s.bank, ['listed', 'notListed', 'copied', 'refSaved', 'refInvalid', 'email']),
+    mrm: pick(s.mrm, ['yourAck', 'idSaved', 'idInvalid']),
     banks,
   };
 }
@@ -136,6 +137,30 @@ function stepExtra(s, p, id) {
           <button type="button" id="bank-ref-save" class="secondary">${esc(b.refSave)}</button></div>
           <p id="bank-ref-status" class="status" role="status" aria-live="polite"></p>
         </div>`;
+  }
+  if (id === 'claim') {
+    const m = s.mrm;
+    const list = (items) => items.map((x) => `<li>${esc(x)}</li>`).join('');
+    return `
+        <aside class="warn" role="note"><p>${esc(m.warn)}</p></aside>
+        <section class="mrm" aria-labelledby="mrm-title">
+          <h3 id="mrm-title">${esc(m.title)}</h3>
+          <p class="src">${esc(m.checked)}</p>
+          <ol class="mrm-steps">${list(m.steps)}</ol>
+          <h4>${esc(m.readyTitle)}</h4>
+          <ul class="mrm-ready"><li>${esc(m.ready[0])} <span id="mrm-ack" class="mrm-ack"></span></li>${list(m.ready.slice(1))}</ul>
+          <p>${esc(m.fir)}</p>
+          <h4>${esc(m.timelineTitle)}</h4>
+          <ul>${list(m.timeline)}</ul>
+          <p>${esc(m.hold)}</p>
+          <p>${ext('https://mrm-ncrp.mha.gov.in/', m.open)}</p>
+          <div class="js-only" hidden>
+            <label for="mrm-id">${esc(m.idLabel)}</label>
+            <div class="inline-field"><input id="mrm-id" type="text" autocomplete="off" maxlength="32" spellcheck="false" autocapitalize="characters">
+            <button type="button" id="mrm-save" class="secondary">${esc(m.idSave)}</button></div>
+            <p id="mrm-status" class="status" role="status" aria-live="polite"></p>
+          </div>
+        </section>`;
   }
   if (id === 'portal') {
     const w = s.portal;

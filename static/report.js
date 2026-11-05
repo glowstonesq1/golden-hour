@@ -64,6 +64,8 @@ function renderCase() {
   $('ack').value = kase.ack || $('ack').value;
   $('portal-ack').value = kase.ack || $('portal-ack').value;
   $('bank-ref').value = kase.bankRef || $('bank-ref').value;
+  $('mrm-id').value = kase.mrmId || $('mrm-id').value;
+  $('mrm-ack').textContent = kase.ack ? fill(T.mrm.yourAck, { ack: kase.ack }) : '';
   $('total-line').textContent = kase.amount ? fill(T.totalLine, { amount: formatAmount(kase.amount) }) : '';
   renderReady();
 }
@@ -293,6 +295,19 @@ $('bank-ref-save').addEventListener('click', () => {
   $('bank-ref-status').textContent = T.bank.refSaved;
 });
 
+// ---------- Step 6: claim held money on the Money Restoration portal ----------
+// Only the request ID is kept. PAN, the refund account and IFSC are typed on the official portal, never here.
+$('mrm-save').addEventListener('click', () => {
+  const mrmId = sanitize({ mrmId: val('mrm-id').replace(/\s/g, '').toUpperCase() }).mrmId;
+  if (!mrmId) {
+    $('mrm-status').textContent = T.mrm.idInvalid;
+    $('mrm-id').focus();
+    return;
+  }
+  saveCase(markDone({ ...kase, mrmId }, 'claim', true));
+  $('mrm-status').textContent = T.mrm.idSaved;
+});
+
 // Files shared to the app from WhatsApp, Gallery or Files arrive here from app.js, in memory.
 export function receiveShare(files) {
   if (files?.length) readFiles(files);
@@ -512,12 +527,12 @@ $('clear').addEventListener('click', () => {
   cards = [];
   base = {};
   micStatus.textContent = micHint;
-  for (const id of ['mic-interim', 'doc-status', 'ack-status', 'ocr-status', 'form-status', 'walk-status', 'portal-ack-status', 'bank-status', 'bank-ref-status']) $(id).textContent = '';
+  for (const id of ['mic-interim', 'doc-status', 'ack-status', 'ocr-status', 'form-status', 'walk-status', 'portal-ack-status', 'bank-status', 'bank-ref-status', 'mrm-status']) $(id).textContent = '';
   $('portal-ack').value = '';
   portal.clear();
   $('cards').replaceChildren();
   form.reset();
-  for (const id of ['contacts', 'sms', 'ack', 'bank-ref']) $(id).value = '';
+  for (const id of ['contacts', 'sms', 'ack', 'bank-ref', 'mrm-id']) $(id).value = '';
   $('fraud-type').value = '';
   for (const id of ['review', 'preview']) $(id).hidden = true;
   $('doc').replaceChildren();

@@ -191,3 +191,12 @@ test('the journey page has all seven steps in order, each with a done button, an
   }
 });
 
+
+test('rule 12: the no-fee recovery warning appears once on each journey page, and nothing links to a search engine', async () => {
+  for (const [lang, prefix] of Object.entries(LANGS)) {
+    const warn = JSON.parse(await readFile(new URL(`../src/strings/${lang}.json`, import.meta.url), 'utf8')).mrm.warn;
+    const html = await read(`${prefix}help/index.html`);
+    assert.equal(html.split(esc(warn)).length - 1, 1, `${lang}: warning shown exactly once`);
+  }
+  for (const { path } of pages) assert.doesNotMatch(await read(path), /google\.|bing\.com|duckduckgo|search\?q=/i, path);
+});

@@ -52,6 +52,7 @@ let page = await ctx.newPage();
 await page.goto(`${BASE}/help/`);
 check((await page.locator('a[href="tel:1930"]').count()) >= 1, 'no-JS: tel:1930 link present on Help');
 check((await page.locator('ol.journey > li').count()) === 7, 'no-JS: seven journey steps render');
+check(await page.locator('#step-claim .warn').isVisible() && (await page.innerText('#step-claim .warn')).includes('No government body or genuine helper'), 'no-JS: the recovery-scam warning is visible');
 check(await page.locator('.js-only').first().isHidden() && await page.locator('#nojs').isVisible(), 'no-JS: interactive parts stay hidden, the letter explains it needs JavaScript');
 await page.goto(`${BASE}/check/`);
 check(await page.locator('#ask').isHidden(), "no-JS: 'Ask my family' stays hidden on Check");
@@ -324,6 +325,18 @@ check(c.bankRef === 'HDFC/2026/88123' && !!c.done?.bank, 'bank: complaint number
 await rp.selectOption('#bank-pick', '');
 check(!(await savedCase(rp)).bank, 'bank: choosing Other removes the bank from the case');
 await rp.selectOption('#bank-pick', 'HDFC Bank');
+
+// Claim held money: the checklist reminds, only the MR request ID is kept.
+check((await rp.innerText('#mrm-ack')).includes('Yours: 31910280012345'), 'claim: checklist shows the acknowledgement number from the case');
+check((await rp.locator('#step-claim').innerText()).includes('more than Rs 50,000 is held in a single account'), 'claim: the FIR rule is shown');
+await rp.fill('#mrm-id', '2026AB1234');
+await rp.click('#mrm-save');
+check((await rp.innerText('#mrm-status')).includes('starts with MR'), 'claim: a malformed request ID is refused');
+await rp.fill('#mrm-id', 'mr2026ab1234');
+await rp.click('#mrm-save');
+c = await savedCase(rp);
+check(c.mrmId === 'MR2026AB1234' && !!c.done?.claim, 'claim: request ID saved (upper-cased) and the step marked done');
+check(!/pan|ifsc/i.test(Object.keys(c).join()), 'claim: no PAN, account or IFSC field exists in the case');
 
 await rp.fill('#portal-ack', '2191028001');
 await rp.click('#portal-ack-save');
