@@ -234,7 +234,7 @@ async function confirmCards(p, kinds = ['amount', 'when', 'utr', 'payee', 'bank'
   }
 }
 async function pasteProof(p, text) {
-  await p.locator('#paste summary').click();
+  if ((await p.locator('#paste').getAttribute('open')) === null) await p.locator('#paste summary').click();
   await p.fill('#sms', text);
   await p.click('#find');
   await p.locator('#review:not([hidden])').waitFor();
@@ -378,7 +378,11 @@ await rp.locator('.card[data-kind="amount"]').first().getByRole('button', { name
 await rp.fill('#edit-c0', '10,000.00');
 await rp.locator('#card-c0').getByRole('button', { name: 'Save', exact: true }).click();
 check((await savedCase(rp)).amount === '1499.50', 'proof: an edited value leaves the case until it is marked Correct again');
+check((await rp.evaluate('document.activeElement?.textContent')) === 'Edit', 'proof: after saving an edit, focus returns to its Edit button');
 await rp.locator('.card[data-kind="amount"]').first().getByRole('button', { name: 'Correct' }).click();
+check((await rp.evaluate('document.activeElement?.textContent')) === 'Correct', 'proof: focus stays on the button just pressed');
+c = await savedCase(rp);
+check(c.bankRef === 'HDFC/2026/88123' && c.mrmId === 'MR2026AB1234' && !!c.done?.bank && !!c.done?.claim, 'proof: changing a card later keeps what other steps saved since');
 await rp.click('.report-form > button.primary');
 check((await rp.innerText('#doc')).includes('Rs 11,499.50'), 'letter: an edited, confirmed amount updates the total');
 await rp.selectOption('#fraud-type', 'otp');
@@ -502,6 +506,16 @@ await fp.locator('.card[data-kind="scammer"]').first().waitFor({ timeout: 20000 
 const scammer = await fp.locator('.card[data-kind="scammer"] .card-value').allInnerTexts();
 check(scammer.some((x) => x.includes('98765 43210')) && scammer.some((x) => x.includes('help123@ybl')), `chat export (.zip): scammer number and UPI ID found (${scammer})`);
 
+// Later batches add to the total; a payment already counted (known by its UTR) is not counted again.
+await pasteProof(fp, SMS);
+await confirmCards(fp, ['amount', 'utr']);
+c = await savedCase(fp);
+check(c.amount === '13499.50' && c.utrs?.length === 2, `second batch: the same two payments again are not counted twice (${c.amount})`);
+await pasteProof(fp, 'Rs.2,000.00 debited from a/c **4821 on 29-Oct-26 to VPA help123@ybl (UPI Ref No 551234567890). -HDFC Bank');
+await confirmCards(fp, ['amount', 'utr']);
+c = await savedCase(fp);
+check(c.amount === '15499.50' && c.utrs?.length === 3, `third batch: a new payment adds to the total (${c.amount}, ${c.utrs})`);
+
 // Share two screenshots to the app: they arrive on the proof step, in memory.
 await fp.goto(`${BASE}/hi/`);
 await fp.evaluate(async ([a, b]) => {
@@ -524,7 +538,7 @@ names = await storageNames(fp);
 const ocrKeys = await fp.evaluate(async () => (await (await caches.open('gh-ocr-7.0.0')).keys()).map((r) => new URL(r.url).pathname));
 check(names.caches.every((k) => /^gh-[0-9a-f]{12}$/.test(k) || k === 'gh-ocr-7.0.0') && !names.idb.length && names.local.join() === 'gh-case-v1',
   `images: no IndexedDB, no extra caches, only the case in localStorage (${names.caches}; ${names.idb}; ${names.local})`);
-check(ocrKeys.length > 0 && ocrKeys.every((k) => k.startsWith('/vendor/') || k === '/ocr.js'), 'images: the OCR cache holds only the engine and language data, never an image');
+check(ocrKeys.length > 0 && ocrKeys.every((k) => k.startsWith('/vendor/')), 'images: the OCR cache holds only the engine and language data, never an image');
 check(!(await fp.evaluate("localStorage.getItem('gh-case-v1')")).includes('png'), 'images: nothing about the screenshots in the saved case');
 await fctx.close();
 

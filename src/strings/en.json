@@ -294,7 +294,6 @@
     "consentBody": "This phone cannot turn speech into text by itself. If you continue, your browser sends your voice to Google (Android) or Apple (iPhone) to turn it into text. Golden Hour never receives it.",
     "consentYes": "Use voice anyway",
     "consentNo": "Type instead",
-    "smsTitle": "Money that left your account",
     "smsLabel": "Paste the bank SMS or UPI receipt for each payment",
     "smsHint": "Paste them one after another. The amount, date, transaction ID (UTR) and who was paid are copied from them.",
     "youTitle": "Your details",
@@ -330,7 +329,6 @@
     "copied": "Report copied. Paste it into an email, the portal or a message.",
     "copyFail": "Could not copy. Use Print or save as PDF instead.",
     "clear": "Clear everything",
-    "cleared": "Everything you entered has been cleared from this page.",
     "doc": {
       "blank": "________",
       "to": "To,",

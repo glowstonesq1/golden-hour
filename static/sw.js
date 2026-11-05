@@ -8,7 +8,9 @@ const MAX_SHARED_FILES = 20;
 // The OCR engine and language data are fetched on first use and kept here. The name follows the vendored
 // Tesseract.js version, so a new deploy does not throw away 7 MB the phone already has.
 const OCR_CACHE = 'gh-ocr-7.0.0';
-const isOcr = (pathname) => pathname.startsWith('/vendor/') || pathname === '/ocr.js';
+// Only the engine and language data: /ocr.js is precached, so it updates with the app and never runs
+// against an engine from another version.
+const isOcr = (pathname) => pathname.startsWith('/vendor/');
 const SHARE_TTL_MS = 2 * 60 * 1000;
 // A received share waits here, in memory only, until the page that opens next asks for it.
 let pending = null;
@@ -52,7 +54,10 @@ async function receiveShare(request, prefix) {
   } catch {
     // Malformed share: open the Check page empty rather than fail.
   }
-  pending = { text, files, at: Date.now() };
+  const at = Date.now();
+  pending = { text, files, at };
+  // Dropped after the time limit even if no page ever asks (the worker being stopped drops it too).
+  setTimeout(() => { if (pending?.at === at) pending = null; }, SHARE_TTL_MS);
   return Response.redirect(files.length ? `${prefix}help/?shared=1#step-proof` : `${prefix}check/?shared=1`, 303);
 }
 

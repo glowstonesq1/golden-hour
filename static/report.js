@@ -133,8 +133,11 @@ function chatText(text) {
   return msgs.length ? msgs.map((m) => `${m.sender}: ${m.text}`).join('\n\n') : text;
 }
 
-async function readFiles(files) {
-  const texts = [];
+let proofRun = 0; // bumps on each new batch and on Clear, so a slow OCR never shows cards for a cleared page
+
+async function readFiles(files, caption = '') {
+  const run = ++proofRun;
+  const texts = caption.trim() ? [caption] : []; // text shared along with the files, in memory like them
   const images = [];
   for (const f of [...files].slice(0, 20)) {
     if (/\.zip$/i.test(f.name) || /zip/.test(f.type)) {
@@ -152,22 +155,25 @@ async function readFiles(files) {
     try {
       ocr = await import('/ocr.js');
       for (const [n, img] of images.entries()) {
+        if (run !== proofRun) break;
         ocrStatus.textContent = fill(T.ocrReading, { n: n + 1, total: images.length });
         // Lines inside one message are joined; blank lines between messages are kept.
         texts.push((await ocr.readImage(img, LANG)).replace(/([^\n])\n(?!\n)/g, '$1 '));
       }
       ocrStatus.textContent = '';
     } catch (err) {
+      if (run !== proofRun) return;
       ocrStatus.textContent = err?.message === 'slow' ? T.ocrSlow : T.ocrFailed;
       $('paste').open = true;
     } finally {
       ocr?.stopReading(); // frees the engine and the images it held
     }
   }
-  showCards(texts);
+  showCards(texts, run);
 }
 
-function showCards(texts) {
+function showCards(texts, run = proofRun) {
+  if (run !== proofRun) return;
   base = sanitize(kase);
   cards = findCards(texts, val('mobile'));
   if (!cards.length && !ocrStatus.textContent) ocrStatus.textContent = T.noneFound;
@@ -177,17 +183,22 @@ function showCards(texts) {
   if (cards.length) $('review-title').focus();
 }
 
-// The case gets only what was marked Correct: total of the correct amounts (computed here), their UTRs,
-// the earliest correct date, and a bank from the known list. Marking Wrong takes it out again.
+// The case gets only what was marked Correct: the total (earlier batches plus the correct amounts here,
+// computed in code), their UTRs, the earliest correct date, and a bank from the known list. Marking Wrong
+// takes a value out again. Only these four fields come from the cards; everything else saved since the
+// cards appeared (acknowledgement number, bank reference, done marks) is kept as it is now.
+const cleanUtr = (u) => String(u || '').replace(/\s/g, '').toUpperCase();
 function syncCase() {
   const ok = (kind) => cards.filter((c) => c.kind === kind && c.state === 'ok').map((c) => c.value);
-  const shown = new Set(cards.filter((c) => c.kind === 'utr').map((c) => c.value.toUpperCase()));
-  const amounts = ok('amount');
+  const shown = new Set(cards.filter((c) => c.kind === 'utr').map((c) => cleanUtr(c.value)));
+  const counted = new Set(base.utrs || []); // payments already in the earlier total
+  const groupUtr = (g) => cleanUtr(cards.find((c) => c.group === g && c.kind === 'utr')?.value);
+  const added = cards.filter((c) => c.kind === 'amount' && c.state === 'ok' && !counted.has(groupUtr(c.group)));
   const dates = ok('when').map(toIso).filter(Boolean).sort();
   const next = {
-    ...base,
-    utrs: [...(base.utrs || []).filter((u) => !shown.has(u)), ...ok('utr').map((u) => u.replace(/\s/g, '').toUpperCase())],
-    amount: amounts.length ? amounts.reduce((sum, a) => sum + amountValue(a), 0).toFixed(2) : base.amount,
+    ...kase,
+    utrs: [...(base.utrs || []).filter((u) => !shown.has(u)), ...ok('utr').map(cleanUtr)],
+    amount: added.length ? added.reduce((sum, c) => sum + amountValue(c.value), Number(base.amount || 0)).toFixed(2) : base.amount,
     lossAt: [dates[0], base.lossAt].filter(Boolean).sort()[0],
     bank: canonicalBank(ok('bank').at(-1)) || base.bank,
   };
@@ -213,7 +224,9 @@ function cardEl(c) {
     b.addEventListener('click', onClick);
     return b;
   };
-  const set = (st) => { c.state = c.state === st ? 'new' : st; syncCase(); renderCards(); $(`card-${c.id}`)?.querySelector('button')?.focus(); };
+  // After a re-render, focus goes back to the button just used (0 Correct, 1 Wrong, 2 Edit).
+  const refocus = (i) => $(`card-${c.id}`)?.querySelectorAll('.card-actions button')[i]?.focus();
+  const set = (st, i) => { c.state = c.state === st ? 'new' : st; syncCase(); renderCards(); refocus(i); };
   const edit = () => {
     const input = h('input', { type: 'text', value: c.value, spellcheck: false, id: `edit-${c.id}` });
     input.setAttribute('aria-label', T.kinds[c.kind]);
@@ -222,6 +235,7 @@ function cardEl(c) {
       c.state = 'new'; // an edited value still needs Correct before it reaches the case
       syncCase();
       renderCards();
+      refocus(2);
     });
     value.replaceWith(h('div', { className: 'inline-field' }, input, save));
     input.focus();
@@ -230,7 +244,7 @@ function cardEl(c) {
     h('p', { className: 'card-kind', textContent: T.kinds[c.kind] }),
     value,
     h('p', { className: 'card-source', textContent: `${T.fromLine} ${c.source}` }),
-    h('div', { className: 'card-actions' }, btn(T.correct, () => set('ok'), c.state === 'ok'), btn(T.wrong, () => set('wrong'), c.state === 'wrong'), btn(T.edit, edit)),
+    h('div', { className: 'card-actions' }, btn(T.correct, () => set('ok', 0), c.state === 'ok'), btn(T.wrong, () => set('wrong', 1), c.state === 'wrong'), btn(T.edit, edit)),
     state);
   el.dataset.state = c.state;
   el.dataset.kind = c.kind;
@@ -242,7 +256,7 @@ $('files').addEventListener('change', (e) => {
 });
 $('find').addEventListener('click', () => {
   ocrStatus.textContent = '';
-  showCards([$('sms').value]);
+  showCards([$('sms').value], ++proofRun);
 });
 
 // ---------- Step 5: tell the bank in writing ----------
@@ -309,8 +323,8 @@ $('mrm-save').addEventListener('click', () => {
 });
 
 // Files shared to the app from WhatsApp, Gallery or Files arrive here from app.js, in memory.
-export function receiveShare(files) {
-  if (files?.length) readFiles(files);
+export function receiveShare(files, text = '') {
+  if (files?.length) readFiles(files, text);
 }
 
 // ---------- Voice for the letter: on the phone when possible, otherwise only after the person agrees ----------
@@ -411,12 +425,14 @@ const longDate = (d) => d.toLocaleDateString(`${LANG}-IN`, { day: 'numeric', mon
 function data() {
   const channel = $('channel');
   const type = $('fraud-type');
-  // Rows from cards marked Correct; without any, the saved case still gives the UTRs and the total.
+  // Rows from cards marked Correct, then UTRs saved from earlier batches; the saved total is used
+  // whenever a row has no amount.
   const okRows = [...new Set(cards.filter((c) => c.group !== null && c.state === 'ok').map((c) => c.group))].map((g) => {
     const get = (kind) => cards.find((c) => c.group === g && c.kind === kind && c.state === 'ok');
     return { when: get('when')?.value || '', amount: get('amount')?.value || '', utr: get('utr')?.value || '', to: get('payee')?.value || '', mode: get('payee')?.mode || '', from: get('payee')?.from || '' };
   });
-  const rows = okRows.length ? okRows : (kase.utrs || []).map((utr) => ({ utr }));
+  const inRows = new Set(okRows.map((r) => r.utr.replace(/\s/g, '').toUpperCase()));
+  const rows = [...okRows, ...(kase.utrs || []).filter((u) => !inRows.has(u)).map((utr) => ({ utr }))];
   return {
     recipient: form.querySelector('input[name="recipient"]:checked')?.value || 'police',
     name: val('name'), mobile: val('mobile'), email: val('email'), address: val('address'),
@@ -426,7 +442,7 @@ function data() {
     typeName: type.value ? type.selectedOptions[0].textContent : '',
     story: story.value,
     payments: rows,
-    total: okRows.some((r) => r.amount) ? undefined : Number(kase.amount || 0),
+    total: rows.length && rows.every((r) => r.amount) ? undefined : Number(kase.amount || 0),
     contacts: $('contacts').value.split('\n').map((x) => x.trim()).filter(Boolean),
     date: longDate(new Date()),
   };
@@ -522,6 +538,7 @@ $('share').addEventListener('click', async () => {
 const micHint = micStatus.textContent;
 $('clear').addEventListener('click', () => {
   rec?.abort();
+  proofRun++; // a screenshot still being read is dropped
   if ('speechSynthesis' in window) speechSynthesis.cancel();
   extractedFrom = { story: null };
   cards = [];

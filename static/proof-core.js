@@ -144,14 +144,20 @@ export function findCards(texts, ownMobile = '') {
   const cards = [];
   let group = 0;
   const seen = new Set();
+  const utrs = new Set();
+  // Fields of a payment are kept per payment: two payments of Rs 5,000 are two amounts. Contacts and banks
+  // are kept once. The same payment seen twice (one screenshot shared twice) is known by its UTR.
   const add = (kind, value, source, g = null, extra = {}) => {
-    const key = `${kind}|${value}`;
+    const key = g === null ? `${kind}|${value}` : `${kind}|${g}|${value}`;
     if (!value || seen.has(key)) return;
     seen.add(key);
     cards.push({ id: `c${cards.length}`, kind, value, source: clip(source, value), group: g, state: 'new', ...extra });
   };
   for (const text of texts) {
     for (const p of extractPayments(text)) {
+      const utr = String(p.utr || '').replace(/\s/g, '').toUpperCase();
+      if (utr && utrs.has(utr)) continue;
+      if (utr) utrs.add(utr);
       const g = group++;
       add('amount', p.amount, p.source, g);
       add('when', p.when, p.source, g);

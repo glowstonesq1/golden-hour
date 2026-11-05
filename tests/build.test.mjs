@@ -19,7 +19,6 @@ before(async () => {
 
 test('the 1930 button comes before any script on every crisis page', async () => {
   for (const { lang, page, path } of pages) {
-    if (page === 'terms/' || page === 'privacy/') continue;
     const html = await read(path);
     const call = html.indexOf('href="tel:1930"');
     assert.ok(call > 0, `${path} has no tel:1930 link`);
@@ -117,13 +116,14 @@ test('the first screen (page, styles, script) downloads under 30 KB, so 1930 pai
 // from about 80 KB to 110 KB compressed when the report maker (three languages) joined the offline copy,
 // and to 125 KB for the proof code (ZIP reader, WhatsApp parser, cards), which must work offline.
 // OCR adds nothing here: its engine, language data and glue are runtime-cached, never precached.
-test('the whole offline copy downloads under 125 KB, with no OCR files in it', async () => {
+test('the whole offline copy downloads under 125 KB, with no OCR engine in it', async () => {
   const sw = await read('sw.js');
   const precache = JSON.parse(sw.match(/const PRECACHE = (\[.*\]);/)[1]);
   let total = await gz('sw.js');
   for (const f of precache) total += await gz(f.endsWith('/') ? `${f}index.html` : f);
   assert.ok(total < 125 * 1024, `offline copy downloads ${total} bytes`);
-  assert.ok(!precache.some((f) => f.startsWith('/vendor/') || f === '/ocr.js'), 'no OCR file in the precache');
+  assert.ok(!precache.some((f) => f.startsWith('/vendor/')), 'no OCR engine or language data in the precache');
+  assert.ok(precache.includes('/ocr.js'), 'the OCR glue is precached, so it updates with the app');
 });
 
 test('every page has exactly one h1, and the 1930 button comes before any notice', async () => {

@@ -100,7 +100,7 @@ function stepExtra(s, p, id) {
             <button type="button" id="read-aloud" class="secondary" hidden>${esc(h.readAloud)}</button>
           </section>
           <label for="ack">${esc(h.ackLabel)}</label>
-          <div class="inline-field"><input id="ack" type="text" inputmode="numeric" autocomplete="off" maxlength="14" spellcheck="false">
+          <div class="inline-field"><input id="ack" type="text" inputmode="numeric" autocomplete="off" maxlength="17" spellcheck="false">
           <button type="button" id="ack-save" class="secondary">${esc(h.ackSave)}</button></div>
           <p id="ack-status" class="status" role="status" aria-live="polite"></p>
         </div>`;
@@ -369,7 +369,8 @@ function body(s, lang, page, banks) {
     <div id="strings" hidden data-worker="${esc(workerOrigin)}" data-copied="${esc(s.check.copied)}" data-copy-fail="${esc(s.check.copyFail)}" data-empty="${esc(s.check.empty)}" data-intro="${esc(s.check.shareIntro)}" data-labels="${esc(JSON.stringify(labels))}"></div>`;
   }
   const doc = page === 'terms/' ? s.terms : s.privacy;
-  return `${mtNote(s)}
+  return `${callButton(s)}
+    ${mtNote(s)}
     <h1>${esc(doc.title)}</h1>
     ${doc.body.map((x) => `<p>${esc(x)}</p>`).join('\n    ')}`;
 }
@@ -467,7 +468,7 @@ export async function loadStrings() {
   return out;
 }
 
-export const isOcrFile = (f) => f.startsWith('/vendor/') || f === '/ocr.js';
+export const isOcrFile = (f) => f.startsWith('/vendor/');
 
 // data/banks.json: every entry must name a known bank, give an email or phone, and cite a page on the
 // bank's own domain (or rbi.org.in) with the date it was checked. The build stops on any bad entry.
@@ -522,8 +523,9 @@ export async function build(outDir = join(ROOT, 'dist')) {
   }
 
   // Precache everything built so the app works offline; the hash changes the worker on every content change.
-  // OCR is left out (the engine and language data in /vendor/, about 16 MB, and the /ocr.js glue): it is fetched
-  // only when someone first reads a screenshot, then kept by the worker's runtime cache.
+  // The OCR engine and language data in /vendor/ (about 16 MB) are left out: they are fetched only when someone
+  // first reads a screenshot, then kept by the worker's runtime cache. The small /ocr.js glue is precached so it
+  // always matches this version of the app.
   const files = (await listFiles(outDir)).sort();
   const hash = createHash('sha256');
   for (const f of files) hash.update(f).update(await readFile(join(outDir, f)));

@@ -163,7 +163,7 @@ const shared = takeShared().catch(() => ({ text: '', files: [] }));
 // Files shared to the app (screenshots, a chat export) are handed to its proof step.
 if ($('report-form')) {
   import('/report.js')
-    .then(async (journey) => { if (opened) journey.receiveShare((await shared).files); })
+    .then(async (journey) => { if (opened) { const s = await shared; journey.receiveShare(s.files, s.text); } })
     .catch(() => {});
 }
 
