@@ -18,6 +18,11 @@ export async function serve(dir, port = 8080) {
   const root = resolve(dir);
   const config = JSON.parse(await readFile(new URL('../vercel.json', import.meta.url), 'utf8'));
   const common = Object.fromEntries(config.headers[0].headers.map((h) => [h.key, h.value]));
+  // Tests of the cloud link check build with GH_WORKER_URL; serve the matching policy for that build.
+  if (process.env.GH_WORKER_URL) {
+    const { CSP_META } = await import('../build.mjs');
+    common['Content-Security-Policy'] = `${CSP_META}; frame-ancestors 'none'; upgrade-insecure-requests`;
+  }
   const server = createServer(async (req, res) => {
     const path = decodeURIComponent(new URL(req.url, 'http://x').pathname);
     let file = resolve(join(root, normalize(path)));

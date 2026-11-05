@@ -1,0 +1,14 @@
+{
+  "name": "golden-hour-link-check",
+  "private": true,
+  "type": "module",
+  "description": "Optional cloud link checker for Golden Hour. Deployed separately; the app works without it.",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "top-sites": "node scripts/top-sites.mjs"
+  },
+  "devDependencies": {
+    "@cloudflare/puppeteer": "1.4.0",
+    "wrangler": "4.151.2"
+  }
+}

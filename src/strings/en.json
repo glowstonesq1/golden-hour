@@ -8,8 +8,10 @@
     "lead": "Lost money to an online scam? The first hour matters most.",
     "helpTitle": "I lost money",
     "helpSub": "Step-by-step help for the next hour",
-    "checkTitle": "I got a suspicious message",
-    "checkSub": "Check it before you reply, pay or click"
+    "checkTitle": "Check a link or message",
+    "checkSub": "Before you open, pay or reply",
+    "trust": "Free. Works offline. Nothing you type leaves your phone.",
+    "helpNext": "Next: {step}"
   },
   "call": {
     "label": "Call 1930 now",
@@ -23,43 +25,108 @@
   },
   "sourceLabel": "Source",
   "help": {
-    "title": "Lost money? Do these now",
+    "title": "Lost money? Do these steps",
     "lead": "Do them in this order. Even if hours or days have passed, still do every step.",
     "steps": [
       {
-        "title": "Call 1930",
-        "body": "Say you lost money in online fraud. Keep your bank SMS open: they will ask for the amount, the time and the transaction ID (UTR). Write down the complaint number they give you.",
+        "id": "call",
+        "title": "Call 1930 now",
+        "body": "Say you lost money in online fraud. They will ask for the amount, the time and the transaction ID (UTR). Write down the acknowledgement number they send you by SMS.",
         "source": "https://cybercrime.gov.in/"
       },
       {
+        "id": "proof",
+        "title": "Add your proof",
+        "body": "Paste the bank SMS or UPI receipt for each payment. The details are copied from them for you to check. Do not delete chats, SMS or call logs.",
+        "source": ""
+      },
+      {
+        "id": "block",
         "title": "Block your card and UPI",
         "body": "Call your bank on the number printed on your card or shown in the bank's own app. Never use a number that came in a message or a search ad.",
         "source": ""
       },
       {
-        "title": "Finish the complaint online within 24 hours",
-        "body": "On cybercrime.gov.in, choose financial fraud and enter your 1930 complaint number. Add screenshots of the transaction and the chat.",
+        "id": "portal",
+        "title": "Finish the complaint on cybercrime.gov.in",
+        "body": "Do it today, ideally within 24 hours of your call. Choose financial fraud and enter your 1930 acknowledgement number. Add screenshots of the transaction and the chat.",
         "source": "https://nicdc.in/images/instructions_citizenreportingcyberfrauds_nw.pdf"
       },
       {
+        "id": "bank",
         "title": "Tell your bank in writing",
         "body": "Use the bank app's fraud option or email the bank, and keep the complaint number. For frauds from 1 January 2027, tell your bank and 1930 within 5 days: small losses may then be compensated.",
         "source": "https://www.rbi.org.in/scripts/BS_PressReleaseDisplay.aspx?prid=63011"
       },
       {
-        "title": "Keep every proof",
-        "body": "Do not delete messages, chats, call logs or the scammer's UPI ID. Take screenshots now.",
+        "id": "claim",
+        "title": "Was your money held? Claim it",
+        "body": "If the police or the 1930 team tell you money was held in the account it went to, you can ask for it to be returned on the Money Restoration portal.",
+        "source": "https://mrm-ncrp.mha.gov.in/"
+      },
+      {
+        "id": "back",
+        "title": "Money back",
+        "body": "When the money reaches your account, mark this step done. Keep every document until your complaint is closed.",
         "source": ""
       }
     ],
+    "readyTitle": "Have this ready for the call",
+    "readyEmpty": "Add your proof in step 2 and the details will appear here.",
+    "ready": {
+      "amount": "Amount lost",
+      "when": "Date and time",
+      "utrs": "Transaction IDs (UTR)",
+      "bank": "Your bank",
+      "scammer": "Scammer's number or UPI ID"
+    },
+    "readAloud": "Read aloud",
+    "ackLabel": "Acknowledgement number from the 1930 SMS (14 digits)",
+    "ackSave": "Save",
+    "ackSaved": "Saved to your case on this phone.",
+    "ackInvalid": "That does not look right. It should be 14 digits, from the SMS sent after your 1930 call.",
+    "done": "Mark as done",
+    "undone": "Done on {date}. Tap to undo.",
+    "find": "Find the details",
+    "letterTitle": "Complaint letter",
+    "letterBody": "Turn your case into a formal letter for the police or your bank. Your name, number and story are used only for the letter and are never saved.",
+    "clearCase": "Clear everything",
+    "caseCleared": "Your case has been removed from this phone.",
     "noLossTitle": "No money lost yet?",
     "noLossBody": "Report the call or message on Chakshu (sancharsaathi.gov.in) so the number can be blocked.",
     "noLossLink": "https://sancharsaathi.gov.in/sfc/",
-    "portalLink": "https://cybercrime.gov.in/"
+    "portalLink": "https://cybercrime.gov.in/",
+    "proofChoose": "Choose screenshots",
+    "proofHint": "Pick screenshots of payment messages or receipts, or a WhatsApp chat export (.txt or .zip). They are read on this phone and never saved or uploaded.",
+    "pasteToggle": "Or paste or type the message text",
+    "ocrLoading": "Getting the text reader ready. It downloads once, about 7 MB.",
+    "ocrReading": "Reading screenshot {n} of {total}…",
+    "ocrFailed": "This phone could not read the screenshots. Paste or type the details below instead.",
+    "ocrSlow": "Reading is taking too long on this phone. Paste or type the details below instead.",
+    "zipFailed": "This file could not be opened. Share the chat as text (.txt), or paste it below.",
+    "noneFound": "No payment details were found. Check the screenshots are clear, or paste or type the details below.",
+    "cardsTitle": "Check each detail",
+    "cardsHint": "Nothing goes into your case until you tap Correct.",
+    "kinds": {
+      "amount": "Amount",
+      "when": "Date and time",
+      "utr": "Transaction ID (UTR)",
+      "payee": "Paid to",
+      "bank": "Bank",
+      "scammer": "Scammer's number or UPI ID"
+    },
+    "fromLine": "From:",
+    "correct": "Correct",
+    "wrong": "Wrong",
+    "edit": "Edit",
+    "saveEdit": "Save",
+    "confirmed": "Added to your case.",
+    "leftOut": "Left out.",
+    "totalLine": "Total lost (from the amounts you marked correct): {amount}"
   },
   "check": {
-    "title": "Check a message",
-    "label": "Paste the message here",
+    "title": "Check a link or message",
+    "label": "Paste the message or link",
     "run": "Check this message",
     "fallback": "The automatic check needs JavaScript. Until then, stop if a message:",
     "signs": [
@@ -150,8 +217,41 @@
       "shortLink": "A shortened link that hides where it goes",
       "unknownLink": "A link to a website that is not a known official site",
       "money": "Asks you to pay or send money",
-      "urgency": "Rushes or threatens you"
-    }
+      "urgency": "Rushes or threatens you",
+      "punycode": "A link with look-alike letters from another alphabet (punycode)",
+      "ipHost": "A link to a bare number address instead of a website name",
+      "riskyTld": "A link ending .vip, .icu or .cc, seen in fake traffic-fine messages",
+      "freeHost": "A link to a free website builder or host, which real companies rarely use"
+    },
+    "cloud": {
+      "title": "Where does this link really go?",
+      "consent": "To find out, we can send only this link, without anything after ? or #, to our checker. It opens the link in a separate browser far from your phone, and keeps no record of it.",
+      "run": "Check where it goes",
+      "running": "Checking. This can take up to half a minute.",
+      "unavailable": "The link checker is not available right now. The result above is from your phone only.",
+      "busy": "The link checker has reached its limit for today. Try later. The result above is from your phone only.",
+      "failed": "The link checker could not open this link. The result above is from your phone only.",
+      "blocked": "This link points to a private or local address, so it was not opened.",
+      "finalUrl": "It ends up at:",
+      "chain": "On the way it passed through:",
+      "shotAlt": "Screenshot of the page the link opens",
+      "clean": "We could not confirm it is safe.",
+      "hide": "Scam pages can hide from checkers like this one, so treat any request for money, an OTP or an app install as a scam.",
+      "reasons": "Why:",
+      "signals": {
+        "otpForm": "The page asks for an OTP",
+        "pinForm": "The page asks for a UPI PIN",
+        "cardForm": "The page asks for a card number or CVV",
+        "aadhaarForm": "The page asks for your Aadhaar number",
+        "passwordOffsite": "The page sends a password to a different website",
+        "apkDownload": "The link downloads an app file (.apk)",
+        "download": "The link downloads a file instead of opening a page",
+        "youngDomain": "The website was registered less than {days} days ago"
+      }
+    },
+    "videoNote": "We can check the link and the words around it, but we cannot judge whether a video itself is fake.",
+    "noLossTitle": "No money lost?",
+    "noLossBody": "Report the message or call on Chakshu (sancharsaathi.gov.in) so the number can be blocked."
   },
   "terms": {
     "title": "Terms",
@@ -166,11 +266,241 @@
   "privacy": {
     "title": "Privacy",
     "body": [
-      "Golden Hour has no server that receives what you type, paste or share. Everything is processed on your phone.",
-      "The app keeps no history. A message you share to it is kept on your phone only until the next page opens, then deleted.",
+      "Golden Hour has no server that receives what you type, paste, share or say. Everything is processed on your phone.",
+      "What this phone remembers: to keep your place in the recovery steps, Golden Hour saves only dates, the amount lost, reference numbers (acknowledgement, UTR, bank complaint and refund request numbers) and your bank's name, in this browser's storage on this phone. It never saves your name, phone number, PAN, account or card numbers, OTPs, the scammer's details or what happened. Clear everything on the I lost money page deletes it.",
+      "Screenshots, messages and chats you share or choose are read in the phone's memory only. They are never saved, cached or uploaded.",
       "There are no accounts, cookies, ads or analytics.",
       "Shares are handled on your phone by the installed app. If the app's stored files were cleared, open the app once before sharing; otherwise a share can reach our web host, which rejects it.",
+      "Voice typing for the complaint letter: if your phone can turn speech into text by itself, it does. If not, Golden Hour asks you first; if you agree, your browser sends your voice to Google or Apple to turn it into text. Golden Hour never receives your voice.",
+      "Link check: only if you tap Check where it goes, the link (without anything after ? or #) is sent to our link checker on Cloudflare, which opens it in a browser there and keeps no log of it. Cloudflare's own systems may keep standard request records. Nothing else from your phone is sent.",
       "Links to cybercrime.gov.in, sancharsaathi.gov.in and your phone dialer open outside the app."
     ]
+  },
+  "report": {
+    "noJs": "The report maker needs JavaScript. Until then, call 1930 and follow the steps on the Help page.",
+    "storyTitle": "What happened",
+    "storyLabel": "Tell it in your own words",
+    "storyHint": "Say when it started, how they contacted you, what they said, what you paid and to whom. Any language is fine.",
+    "mic": "Speak",
+    "micStop": "Stop",
+    "micListening": "Listening. Speak now.",
+    "micLocal": "Speech is turned into text on this phone.",
+    "micDownloading": "Downloading the voice pack so your speech stays on this phone…",
+    "micKeyboard": "You can also tap the microphone on your phone's keyboard.",
+    "micDenied": "Microphone permission was refused. Type instead, or use your keyboard's microphone.",
+    "micNetwork": "Voice typing needs the internet on this phone. Type instead, or use your keyboard's microphone.",
+    "micError": "Voice typing stopped. Type instead, or tap Speak again.",
+    "consentTitle": "Your voice will leave this phone",
+    "consentBody": "This phone cannot turn speech into text by itself. If you continue, your browser sends your voice to Google (Android) or Apple (iPhone) to turn it into text. Golden Hour never receives it.",
+    "consentYes": "Use voice anyway",
+    "consentNo": "Type instead",
+    "smsTitle": "Money that left your account",
+    "smsLabel": "Paste the bank SMS or UPI receipt for each payment",
+    "smsHint": "Paste them one after another. The amount, date, transaction ID (UTR) and who was paid are copied from them.",
+    "youTitle": "Your details",
+    "name": "Full name",
+    "mobile": "Mobile number",
+    "email": "Email (optional)",
+    "address": "Address or city",
+    "firstContact": "Date they first contacted you",
+    "channel": "How did they contact you?",
+    "channelPick": "Choose one",
+    "channels": {
+      "call": "Phone call",
+      "whatsapp": "WhatsApp",
+      "sms": "SMS",
+      "email": "Email",
+      "social": "Social media (Instagram, Facebook, Telegram)",
+      "app": "Website or app",
+      "other": "Other"
+    },
+    "bank": "Your bank or wallet",
+    "recipient": "Who is this report for?",
+    "recipients": {
+      "police": "Police station or cyber cell",
+      "bank": "My bank"
+    },
+    "make": "Make my report",
+    "needStory": "First tell what happened: speak or type in the box above.",
+    "contactsLabel": "Scammer's phone numbers, UPI IDs and links (one per line)",
+    "previewTitle": "Your report",
+    "print": "Print or save as PDF",
+    "copy": "Copy text",
+    "share": "Send or share",
+    "copied": "Report copied. Paste it into an email, the portal or a message.",
+    "copyFail": "Could not copy. Use Print or save as PDF instead.",
+    "clear": "Clear everything",
+    "cleared": "Everything you entered has been cleared from this page.",
+    "doc": {
+      "blank": "________",
+      "to": "To,",
+      "toPolice": "The Station House Officer / In-charge, Cyber Cell",
+      "toBank": "The Branch Manager / Fraud Reporting Team",
+      "dateLabel": "Date",
+      "subject": "Subject: Complaint of online financial fraud of {amount}",
+      "subjectNoAmount": "Subject: Complaint of online financial fraud",
+      "salutation": "Respected Sir or Madam,",
+      "intro": "I, {name}, mobile {mobile}, wish to report an online financial fraud committed against me.",
+      "introAck": "I have reported it on the 1930 helpline. Complaint number: {ack}.",
+      "s1": "Details of the complainant",
+      "s2": "What happened, in my own words",
+      "s3": "Transactions",
+      "col": {
+        "when": "Date and time",
+        "amount": "Amount",
+        "mode": "Mode",
+        "utr": "Transaction ID / UTR",
+        "to": "Paid to",
+        "from": "From my account"
+      },
+      "total": "Total amount lost: {amount}",
+      "noPaymentsDoc": "Transaction details to be added.",
+      "s4": "Details of the suspect",
+      "fraudType": "Type of fraud",
+      "contactedBy": "Contacted me by",
+      "firstContact": "First contact",
+      "contactsTitle": "Phone numbers, UPI IDs and links used",
+      "s5": "Request",
+      "requestPolice": "I request you to register my complaint, take action to freeze the account or accounts that received my money, and help me recover it. Please give me a written acknowledgement with a complaint number.",
+      "requestBank": "These transactions were made as a result of fraud. I request the bank to block my card and UPI, raise a dispute for the transactions above, support the freeze request, and acknowledge this complaint in writing with a complaint number.",
+      "s6": "Documents attached",
+      "docs": [
+        "Screenshots of the transactions",
+        "Screenshots of the chat, call log or messages",
+        "Bank statement showing the transactions",
+        "Copy of my ID proof"
+      ],
+      "declaration": "I declare that the information above is true to the best of my knowledge.",
+      "signature": "Signature",
+      "place": "Place",
+      "f": {
+        "name": "Name",
+        "mobile": "Mobile",
+        "email": "Email",
+        "address": "Address",
+        "bank": "Bank or wallet"
+      },
+      "footer": "Prepared on my phone with Golden Hour, an independent tool. This is not an official form."
+    }
+  },
+  "install": {
+    "button": "Install app",
+    "ios": "On iPhone or iPad: tap the Share button, then Add to Home Screen.",
+    "other": "In other browsers: open the browser menu and choose Install app or Add to Home screen."
+  },
+  "moved": {
+    "title": "This page has moved",
+    "body": "Opening the I lost money page.",
+    "link": "Open it now"
+  },
+  "portal": {
+    "walk": "Walk me through the portal",
+    "checked": "Steps as reported on 4 November 2026. The portal may change; follow what it shows.",
+    "stageN": "Stage {n} of {total}",
+    "back": "Back",
+    "next": "Next",
+    "open": "Open cybercrime.gov.in",
+    "copy": "Copy",
+    "copied": "Copied: {value}",
+    "notYet": "Not in your case yet. Add your proof in step 2.",
+    "stages": [
+      {
+        "title": "Start a financial fraud complaint",
+        "body": "On cybercrime.gov.in, choose to register a complaint, then financial fraud, then accept the terms."
+      },
+      {
+        "title": "Sign in with your phone",
+        "body": "The portal asks for your state, email and mobile number, then sends an OTP. Type the OTP and the CAPTCHA yourself. Golden Hour never sees them, and nobody should ever ask you for them."
+      },
+      {
+        "title": "Incident details",
+        "body": "The portal asks what happened and about the money: when, how much, the transaction ID (UTR) and your bank. Copy them from here."
+      },
+      {
+        "title": "Suspect details",
+        "body": "Add the scammer's phone number, UPI ID and any link they sent."
+      },
+      {
+        "title": "Your details",
+        "body": "Type your own name and address. Golden Hour does not keep them."
+      },
+      {
+        "title": "Evidence",
+        "body": "Upload screenshots of the payment and the chat. Each file must be under 5 MB. Make copies under 5 MB here; they are not saved anywhere."
+      },
+      {
+        "title": "Preview, submit and confirm",
+        "body": "Check everything, then press Submit and Confirm yourself. The complaint number comes by SMS and email, and you can download a PDF. Paste the acknowledgement number below."
+      }
+    ],
+    "evidenceChoose": "Make copies under 5 MB",
+    "evidenceReady": "Ready: {name} ({size})",
+    "evidenceFail": "This image could not be converted. Try a screenshot instead of a photo.",
+    "ackPortal": "Starts with 2: a complaint filed on the portal.",
+    "ackCall": "Starts with 3: a complaint registered by calling 1930.",
+    "ackOther": "Saved. It does not start with 2 or 3, so check it matches the SMS."
+  },
+  "bank": {
+    "pick": "Your bank",
+    "other": "Other or not listed",
+    "write": "Write to my bank",
+    "copy": "Copy the text",
+    "copied": "Copied. Paste it into an email or the bank's fraud form.",
+    "listed": "Fraud contact from the bank's own website, checked on {date}:",
+    "notListed": "We have not checked this bank's fraud contact yet. Use the Report fraud option in your bank's own app, or call the number on the back of your card. Never use a number you found by searching, or one that came in a message.",
+    "refLabel": "Bank complaint number",
+    "refSave": "Save",
+    "refSaved": "Saved to your case on this phone.",
+    "refInvalid": "Type the complaint number exactly as the bank gave it: letters, numbers, / or -.",
+    "liability": "If you did not make the payment yourself, RBI rules limit what you lose when you report it quickly, so tell the bank at once. If you made the payment yourself because you were tricked, those rules may not apply. Report it anyway.",
+    "email": {
+      "subject": "Fraud report: unauthorised transactions of {amount} on {date}",
+      "greeting": "Dear Sir or Madam,",
+      "request": "I am reporting fraudulent transactions on my account. Please block my debit card, UPI and net banking at once, treat these transactions as unauthorised and fraudulent, and give me a complaint number.",
+      "amount": "Amount",
+      "date": "Date",
+      "utrs": "Transaction IDs (UTR)",
+      "ack": "1930 / cybercrime.gov.in acknowledgement number",
+      "confirm": "Please confirm in writing, with a complaint number.",
+      "regards": "Regards,",
+      "namePlaceholder": "[Your name]",
+      "mobilePlaceholder": "[Your registered mobile number]",
+      "notKnown": "[not known yet]",
+      "more": "and {n} more"
+    }
+  },
+  "mrm": {
+    "warn": "No government body or genuine helper ever charges a fee to recover your money. Anyone who asks for a fee, an OTP, your PAN or your bank login to get it back for you is another scammer. Never search online for recovery help.",
+    "title": "How to claim on the Money Restoration portal",
+    "checked": "As reported on 4 November 2026. The portal may change; follow what it shows.",
+    "steps": [
+      "Sign in at mrm-ncrp.mha.gov.in with the mobile number you used for the complaint, and the OTP it sends.",
+      "Choose Raise Refund Request.",
+      "Enter your 14-digit acknowledgement number. The portal shows the amount held.",
+      "Enter the bank account and IFSC where the money should come back.",
+      "Enter your PAN.",
+      "Type the CAPTCHA and press Submit yourself. You get a request ID that starts with MR."
+    ],
+    "readyTitle": "Have these ready. Golden Hour never saves them.",
+    "ready": [
+      "Your 14-digit acknowledgement number",
+      "Your PAN card",
+      "The bank account number and IFSC where the money should come back",
+      "The phone with the mobile number you used for the complaint, for the OTP"
+    ],
+    "yourAck": "Yours: {ack}",
+    "fir": "As reported: an FIR is needed only when more than Rs 50,000 is held in a single account. If the police ask you to file one, do.",
+    "timelineTitle": "What happens next: targets in the procedure, not guarantees",
+    "timeline": [
+      "The investigating officer tells the holder of the account the money went to, within 7 days.",
+      "That account holder has 15 days to respond.",
+      "Your bank credits you within 15 days of the official notice to release the money."
+    ],
+    "hold": "A bank may lift a hold after 90 days if no legal direction reaches it. That is not a refund promise, so apply as soon as you hear money was held.",
+    "open": "Open mrm-ncrp.mha.gov.in",
+    "idLabel": "Refund request ID (starts with MR)",
+    "idSave": "Save",
+    "idSaved": "Saved to your case on this phone.",
+    "idInvalid": "That does not look right. The request ID starts with MR, followed by letters and numbers."
   }
 }

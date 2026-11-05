@@ -24,7 +24,7 @@ const OFFICIAL = [
 ];
 // Brand names are matched at the start or end of a host label ("onlinesbi-verify", "sbi-kyc"),
 // never in the middle of a word ("orbit", "training"). "gov" must be a whole label part.
-const BRAND_PART = /^(sbi|yono|hdfc|icici|axis|kotak|pnb|canara|baroda|unionbank|paytm|phonepe|gpay|googlepay|amazon|flipkart|indiapost|bluedart|delhivery|dtdc|fedex|dhl|airtel|jio|bses|tatapower|mahadiscom|mahavitaran|msedcl|adani|incometax|uidai|aadhaa?r|epfo|npci|rbi|irctc)|(sbi|yono|hdfc|icici|axis|kotak|pnb|canara|baroda|unionbank|paytm|phonepe|gpay|amazon|flipkart|indiapost|bluedart|delhivery|dtdc|fedex|airtel|bses|tatapower|mahadiscom|mahavitaran|msedcl|incometax|uidai|epfo|npci|irctc)$|^gov$/;
+const BRAND_PART = /^(sbi|yono|hdfc|icici|axis|kotak|pnb|canara|baroda|unionbank|paytm|phonepe|gpay|googlepay|amazon|flipkart|indiapost|bluedart|delhivery|dtdc|fedex|dhl|airtel|jio|bses|tatapower|mahadiscom|mahavitaran|msedcl|adani|incometax|uidai|aadhaa?r|epfo|npci|rbi|irctc|parivahan|echallan)|(sbi|yono|hdfc|icici|axis|kotak|pnb|canara|baroda|unionbank|paytm|phonepe|gpay|amazon|flipkart|indiapost|bluedart|delhivery|dtdc|fedex|airtel|bses|tatapower|mahadiscom|mahavitaran|msedcl|incometax|uidai|epfo|npci|irctc|parivahan|echallan)$|^gov$/;
 const hasBrand = (host) => host.split(/[.-]/).some((part) => BRAND_PART.test(part));
 
 // Bare hosts (no scheme) need a lowercase TLD, so run-together sentences ("sent.To check") are not links.
@@ -43,12 +43,17 @@ export function findLinks(text) {
     if (BARE_HOST.test(token)) found.push(token);
   }
   return found.map((raw) => {
+    const scheme = raw.match(/^(https?):\/\//i)?.[1].toLowerCase() || '';
     const rest = raw.replace(/[)>"'.,;:!?।]+$/, '').replace(/^https?:\/\//i, '');
     const authority = rest.split(/[/?#]/)[0];
     const at = authority.lastIndexOf('@'); // "https://onlinesbi.sbi@evil.xyz" really goes to evil.xyz
-    const host = authority.slice(at + 1).split(':')[0].toLowerCase().replace(/^www\./, '').replace(/\.$/, '');
-    return { host, path: rest.slice(authority.length).split(/[?#]/)[0].toLowerCase(), userinfo: at >= 0 };
-  }).filter((l) => l.host.includes('.'));
+    const hostPort = authority.slice(at + 1);
+    // An IPv6 literal keeps its brackets ("[::1]"); anything else drops the port.
+    const host = (hostPort.startsWith('[') ? hostPort.slice(0, hostPort.indexOf(']') + 1) : hostPort.split(':')[0])
+      .toLowerCase().replace(/^www\./, '').replace(/\.$/, '');
+    const rawPath = rest.slice(authority.length).split(/[?#]/)[0];
+    return { host, path: rawPath.toLowerCase(), userinfo: at >= 0, scheme, rawPath, rawHost: hostPort.toLowerCase() };
+  }).filter((l) => l.host.includes('.') || /^\[[0-9a-f:.]+\]$/.test(l.host));
 }
 
 // Sign detectors. Hard signs alone make a message a likely scam.
@@ -95,15 +100,31 @@ const SIGNS = {
     /(तुरंत|तुरन्त|आज रात|बंद कर दिया जाएगा|ताबडतोब|त्वरित|आज रात्री|लगेच|बंद होईल|खंडित केले जाईल)/.test(t),
 };
 
+// Top-level domains seen in Indian e-challan (traffic fine) scam links.
+const RISKY_TLDS = new Set(['vip', 'icu', 'cc']);
+// Free website builders and hosting: real organisations rarely send these, phishing pages often live on them.
+const FREE_HOSTS = ['blogspot.com', 'weebly.com', 'wixsite.com', '000webhostapp.com', 'netlify.app', 'vercel.app', 'pages.dev',
+  'github.io', 'firebaseapp.com', 'web.app', 'glitch.me', 'herokuapp.com', 'sites.google.com', 'godaddysites.com', 'webflow.io',
+  'framer.app', 'ngrok-free.app', 'r2.dev', 'workers.dev'];
+// Video and social links: the app can judge the link and the words around it, never the video itself.
+const VIDEO_HOSTS = ['youtube.com', 'youtu.be', 'instagram.com', 't.me', 'telegram.me', 'facebook.com', 'fb.watch', 'whatsapp.com',
+  'wa.me', 'sharechat.com', 'x.com', 'twitter.com'];
+const under = (host, list) => list.some((d) => host === d || host.endsWith(`.${d}`));
+
 const LINK_SIGNS = (links) => ({
   apk: links.some((l) => l.path.endsWith('.apk') || l.host.endsWith('.apk')),
-  lookalike: links.some((l) => l.userinfo || /^\d+\.\d+\.\d+\.\d+$/.test(l.host) || (hasBrand(l.host) && !isOfficial(l.host))),
+  lookalike: links.some((l) => l.userinfo || (hasBrand(l.host) && !isOfficial(l.host))),
+  punycode: links.some((l) => l.host.split('.').some((label) => label.startsWith('xn--'))),
+  ipHost: links.some((l) => /^\d+\.\d+\.\d+\.\d+$/.test(l.host) || l.host.startsWith('[')),
   shortLink: links.some((l) => SHORTENERS.has(l.host)),
+  riskyTld: links.some((l) => RISKY_TLDS.has(l.host.split('.').pop())),
+  freeHost: links.some((l) => under(l.host, FREE_HOSTS)),
   unknownLink: links.some((l) => !isOfficial(l.host) && !SHORTENERS.has(l.host)),
+  video: links.some((l) => under(l.host, VIDEO_HOSTS)),
 });
 
-const HARD = ['apk', 'screenShare', 'otpAsk', 'collect', 'lookalike'];
-const SOFT = ['unknownLink', 'shortLink', 'money', 'urgency'];
+const HARD = ['apk', 'screenShare', 'otpAsk', 'collect', 'lookalike', 'punycode', 'ipHost'];
+const SOFT = ['shortLink', 'riskyTld', 'freeHost', 'unknownLink', 'money', 'urgency'];
 
 // Scam types, most specific first so ties go to the narrower type. Each pattern adds one point;
 // an array of regexes is one pattern that needs all of them; a function is a detector from above.
@@ -174,6 +195,26 @@ const TYPES = {
 const score = (text, patterns) =>
   patterns.reduce((n, p) => n + (Array.isArray(p) ? p.every((re) => re.test(text)) : typeof p === 'function' ? p(text) : p.test(text)), 0);
 
+// The first link in a message, ready for the cloud check: scheme, host and path only (no query, no fragment).
+// Paths keep their case: short links like bit.ly/AbC are case-sensitive. Bare hosts get http, which
+// scam sites answer more often; a real site upgrades to https itself.
+export function firstLink(text) {
+  const l = findLinks(String(text ?? '').slice(0, MAX_CHARS)).find((x) => !x.userinfo);
+  return l ? `${l.scheme || 'http'}://${l.rawHost}${l.rawPath || '/'}` : ''; // host as written: www. and port kept
+}
+
+// Signals from the cloud check, combined with the on-device result. They can only raise the verdict:
+// a clean scan never lowers it, and never makes anything "safe".
+const CLOUD_HARD = ['otpForm', 'pinForm', 'cardForm', 'aadhaarForm', 'passwordOffsite', 'apkDownload'];
+const CLOUD_SOFT = ['download', 'youngDomain'];
+export function combine(local, cloud = []) {
+  const known = cloud.filter((k) => CLOUD_HARD.includes(k) || CLOUD_SOFT.includes(k));
+  let verdict = local.verdict;
+  if (known.some((k) => CLOUD_HARD.includes(k))) verdict = 'likely';
+  else if (known.length && verdict === 'none') verdict = 'careful';
+  return { ...local, verdict, cloud: known, reasons: [...known.map((k) => ['cloud', k]), ...local.signs.map((k) => ['local', k])].slice(0, 3) };
+}
+
 export function check(input) {
   const text = String(input ?? '').slice(0, MAX_CHARS).normalize('NFC').replace(/\s+/g, ' ').trim();
   const found = { ...LINK_SIGNS(findLinks(text)) };
@@ -195,5 +236,5 @@ export function check(input) {
   let verdict = 'none';
   if (hard || (type && soft)) verdict = 'likely';
   else if (type || found.shortLink || (found.money && found.urgency)) verdict = 'careful';
-  return { verdict, type: verdict === 'none' ? null : type, signs };
+  return { verdict, type: verdict === 'none' ? null : type, signs, video: found.video };
 }

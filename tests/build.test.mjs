@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { readFile, readdir, stat, mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { gzipSync } from 'node:zlib';
 import { build, esc, ext, LANGS, PAGES, CSP_META } from '../build.mjs';
 
 let out;
@@ -91,20 +92,38 @@ test('Vercel headers: strict CSP and no network destinations other than self', a
   const config = JSON.parse(await readFile(new URL('../vercel.json', import.meta.url), 'utf8'));
   const headers = Object.fromEntries(config.headers[0].headers.map((h) => [h.key, h.value]));
   const csp = headers['Content-Security-Policy'];
-  assert.match(csp, /script-src 'self';/);
+  assert.match(csp, /script-src 'self' 'wasm-unsafe-eval';/, "scripts only from 'self'; WebAssembly may compile (OCR)");
   assert.match(csp, /connect-src 'self';/);
   assert.match(csp, /frame-ancestors 'none'/);
-  assert.doesNotMatch(csp, /unsafe-inline|unsafe-eval|\*/);
-  assert.ok(csp.startsWith(CSP_META), 'meta CSP and header CSP drifted apart');
+  assert.doesNotMatch(csp, /unsafe-inline|(?<!wasm-)unsafe-eval|\*/, "no inline scripts, no JavaScript eval, no wildcards");
+  assert.ok(csp.startsWith(CSP_META), 'meta CSP and header CSP drifted apart (after setting WORKER_ORIGIN, copy the policy into vercel.json)');
   assert.equal(headers['Referrer-Policy'], 'no-referrer');
 });
 
-test('first visit, including the whole offline precache, stays under 150 KB', async () => {
+// Measured as transfer size (hosts serve text compressed; PNGs already are).
+const gz = async (f) => {
+  const buf = await readFile(join(out, f));
+  return f.endsWith('.png') ? buf.length : gzipSync(buf, { level: 9 }).length;
+};
+
+test('the first screen (page, styles, script) downloads under 30 KB, so 1930 paints fast', async () => {
+  for (const page of ['index.html', 'help/index.html', 'hi/help/index.html', 'mr/check/index.html']) {
+    const total = (await gz(page)) + (await gz('style.css')) + (await gz('app.js'));
+    assert.ok(total < 30 * 1024, `${page} first screen downloads ${total} bytes`);
+  }
+});
+
+// The whole offline copy is fetched in the background after the first screen. This budget was raised
+// from about 80 KB to 110 KB compressed when the report maker (three languages) joined the offline copy,
+// and to 125 KB for the proof code (ZIP reader, WhatsApp parser, cards), which must work offline.
+// OCR adds nothing here: its engine, language data and glue are runtime-cached, never precached.
+test('the whole offline copy downloads under 125 KB, with no OCR files in it', async () => {
   const sw = await read('sw.js');
   const precache = JSON.parse(sw.match(/const PRECACHE = (\[.*\]);/)[1]);
-  let total = (await stat(join(out, 'sw.js'))).size;
-  for (const f of precache) total += (await stat(join(out, f.endsWith('/') ? `${f}index.html` : f))).size;
-  assert.ok(total < 150 * 1024, `first visit is ${total} bytes`);
+  let total = await gz('sw.js');
+  for (const f of precache) total += await gz(f.endsWith('/') ? `${f}index.html` : f);
+  assert.ok(total < 125 * 1024, `offline copy downloads ${total} bytes`);
+  assert.ok(!precache.some((f) => f.startsWith('/vendor/') || f === '/ocr.js'), 'no OCR file in the precache');
 });
 
 test('every page has exactly one h1, and the 1930 button comes before any notice', async () => {
@@ -146,4 +165,50 @@ test('the 1930 button meets WCAG AA contrast in light and dark themes', async ()
   for (const call of css.match(/--call: (#[0-9a-f]{6})/g).map((m) => m.split(' ')[1])) {
     assert.ok(ratio(call, '#ffffff') >= 4.5, `${call} on white is ${ratio(call, '#ffffff').toFixed(2)}`);
   }
+});
+
+test('old addresses forward to the journey, offline and without JavaScript, with 1930 first', async () => {
+  for (const [prefix] of Object.values(LANGS).map((p) => [p])) {
+    for (const [page, target] of [['report/', 'help/#letter'], ['case/', 'help/']]) {
+      const html = await read(`${prefix}${page}index.html`);
+      assert.ok(html.includes(`<meta http-equiv="refresh" content="0; url=${prefix}${target}">`), `${prefix}${page}`);
+      assert.ok(html.includes(`href="${prefix}${target}"`), `${prefix}${page} has a plain link too`);
+      assert.ok(html.indexOf('tel:1930') < html.indexOf('<script'), `${prefix}${page}`);
+    }
+  }
+  const sw = await read('sw.js');
+  for (const u of ['/report/', '/case/', '/hi/case/', '/mr/report/']) assert.ok(sw.includes(`"${u}"`), `${u} is precached`);
+});
+
+test('the journey page has all seven steps in order, each with a done button, and the letter', async () => {
+  for (const prefix of Object.values(LANGS)) {
+    const html = await read(`${prefix}help/index.html`);
+    const ids = [...html.matchAll(/data-step="(\w+)"/g)].map((m) => m[1]);
+    assert.deepEqual(ids, ['call', 'proof', 'block', 'portal', 'bank', 'claim', 'back'], prefix);
+    assert.equal((html.match(/data-done="/g) || []).length, 7);
+    assert.ok(html.includes('id="report-form"') && html.includes('id="letter"'));
+    assert.doesNotMatch(html, /Summarizer|ai-run/, 'no AI summary');
+  }
+});
+
+
+test('rule 12: the no-fee recovery warning appears once on each journey page, and nothing links to a search engine', async () => {
+  for (const [lang, prefix] of Object.entries(LANGS)) {
+    const warn = JSON.parse(await readFile(new URL(`../src/strings/${lang}.json`, import.meta.url), 'utf8')).mrm.warn;
+    const html = await read(`${prefix}help/index.html`);
+    assert.equal(html.split(esc(warn)).length - 1, 1, `${lang}: warning shown exactly once`);
+  }
+  for (const { path } of pages) assert.doesNotMatch(await read(path), /google\.|bing\.com|duckduckgo|search\?q=/i, path);
+});
+
+test('cloud link check: off unless a worker origin is set; then CSP widens by exactly that origin and blob: images', async () => {
+  const { cspFor, WORKER_ORIGIN } = await import('../build.mjs');
+  assert.equal(WORKER_ORIGIN, '', 'no worker is configured in the repository yet');
+  assert.equal(cspFor(''), CSP_META);
+  const withWorker = cspFor('https://golden-hour-link-check.example.workers.dev');
+  assert.match(withWorker, /connect-src 'self' https:\/\/golden-hour-link-check\.example\.workers\.dev;/);
+  assert.match(withWorker, /img-src 'self' blob:;/);
+  assert.equal(withWorker.replace(" https://golden-hour-link-check.example.workers.dev", '').replace(' blob:', ''), CSP_META, 'nothing else changes');
+  const html = await read('check/index.html');
+  assert.ok(html.includes('data-worker=""') && /<section id="cloud" class="cloud" hidden/.test(html));
 });
