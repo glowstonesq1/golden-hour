@@ -1,0 +1,5 @@
+{
+  "about": "Fraud-reporting contacts for Indian banks, shown on the journey's bank step. Add a bank only after checking its fraud email or phone on the bank's own website (or rbi.org.in), with that page as source and the date you checked. Fewer verified entries beat more guessed ones. The build refuses entries that break these rules.",
+  "example": { "name": "State Bank of India", "domains": ["sbi.co.in", "sbi.bank.in"], "email": "fraud-team@example.invalid", "phone": "1800 000 0000", "source": "https://sbi.co.in/<the page that lists it>", "checked": "2026-11-05" },
+  "banks": []
+}

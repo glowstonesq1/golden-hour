@@ -2,7 +2,7 @@
 // Loaded by app.js only on the journey page. Builds DOM with textContent only, never from HTML strings.
 // Only case-core's sanitized fields ever reach localStorage; names, numbers and the story stay in memory.
 import { check } from './rules.js';
-import { extractContacts, buildReport, reportText, amountValue } from './report-core.js';
+import { extractContacts, buildReport, reportText, amountValue, bankEmail } from './report-core.js';
 import { CASE_KEY, parseCase, sanitize, markDone, nextStep, formatDate, formatAmount, toIso, ackInfo } from './case-core.js';
 import { initPortal } from './portal.js';
 import { findCards, zipTexts, parseWhatsApp, canonicalBank } from './proof-core.js';
@@ -63,7 +63,7 @@ function renderCase() {
   }
   $('ack').value = kase.ack || $('ack').value;
   $('portal-ack').value = kase.ack || $('portal-ack').value;
-  if (kase.bank && !val('bank')) $('bank').value = kase.bank;
+  $('bank-ref').value = kase.bankRef || $('bank-ref').value;
   $('total-line').textContent = kase.amount ? fill(T.totalLine, { amount: formatAmount(kase.amount) }) : '';
   renderReady();
 }
@@ -92,6 +92,7 @@ function renderReady() {
   $('ready-empty').hidden = items.length > 0;
   $('read-aloud').hidden = !items.length || !localVoice();
   portal?.refresh();
+  renderBank();
 }
 
 // Read aloud only with a voice that runs on the phone: a network voice would send the amount and UTRs away.
@@ -242,10 +243,54 @@ $('find').addEventListener('click', () => {
   showCards([$('sms').value]);
 });
 
-// A typed bank name is kept only if it is one of the known banks, never as free text.
-$('bank').addEventListener('change', () => {
-  const name = canonicalBank(val('bank'));
-  if (name) saveCase({ ...kase, bank: name });
+// ---------- Step 5: tell the bank in writing ----------
+// The bank is chosen from the known list, never typed, so no other words can end up stored as "bank".
+$('bank-pick').addEventListener('change', () => saveCase({ ...kase, bank: canonicalBank(val('bank-pick')) || undefined }));
+
+function bankMail() {
+  const entry = T.banks.find((b) => b.name === kase.bank);
+  return bankEmail({
+    to: entry?.email,
+    amount: kase.amount && formatAmount(kase.amount),
+    date: kase.lossAt && formatDate(kase.lossAt, LANG),
+    utrs: kase.utrs,
+    ack: kase.ack,
+    name: val('name'), // from the letter form, in memory only
+    mobile: val('mobile'),
+  }, T.bank.email);
+}
+
+function renderBank() {
+  $('bank-pick').value = kase.bank || '';
+  const entry = T.banks.find((b) => b.name === kase.bank);
+  const box = $('bank-contact');
+  if (entry) {
+    const link = h('a', { href: entry.source, rel: 'noopener noreferrer', target: '_blank', textContent: new URL(entry.source).hostname });
+    box.replaceChildren(fill(T.bank.listed, { date: formatDate(entry.checked, LANG) }), ' ', [entry.email, entry.phone].filter(Boolean).join(', '), ' (', link, ')');
+  } else box.textContent = T.bank.notListed;
+  $('bank-write').href = bankMail().mailto;
+}
+
+$('bank-copy').addEventListener('click', async () => {
+  const { subject, body } = bankMail();
+  try {
+    await navigator.clipboard.writeText(`${subject}\n\n${body}`);
+    $('bank-status').textContent = T.bank.copied;
+  } catch {
+    $('bank-status').textContent = '';
+  }
+});
+$('bank-write').addEventListener('click', () => { $('bank-write').href = bankMail().mailto; }); // latest name and number
+
+$('bank-ref-save').addEventListener('click', () => {
+  const bankRef = sanitize({ bankRef: val('bank-ref') }).bankRef;
+  if (!bankRef) {
+    $('bank-ref-status').textContent = T.bank.refInvalid;
+    $('bank-ref').focus();
+    return;
+  }
+  saveCase(markDone({ ...kase, bankRef }, 'bank', true));
+  $('bank-ref-status').textContent = T.bank.refSaved;
 });
 
 // Files shared to the app from WhatsApp, Gallery or Files arrive here from app.js, in memory.
@@ -360,7 +405,7 @@ function data() {
   return {
     recipient: form.querySelector('input[name="recipient"]:checked')?.value || 'police',
     name: val('name'), mobile: val('mobile'), email: val('email'), address: val('address'),
-    bank: val('bank') || kase.bank || '', ack: kase.ack || '',
+    bank: kase.bank || '', ack: kase.ack || '',
     firstContact: val('first-contact') && longDate(new Date(`${val('first-contact')}T00:00`)),
     channel: channel.value ? channel.selectedOptions[0].textContent : '',
     typeName: type.value ? type.selectedOptions[0].textContent : '',
@@ -467,12 +512,12 @@ $('clear').addEventListener('click', () => {
   cards = [];
   base = {};
   micStatus.textContent = micHint;
-  for (const id of ['mic-interim', 'doc-status', 'ack-status', 'ocr-status', 'form-status', 'walk-status', 'portal-ack-status']) $(id).textContent = '';
+  for (const id of ['mic-interim', 'doc-status', 'ack-status', 'ocr-status', 'form-status', 'walk-status', 'portal-ack-status', 'bank-status', 'bank-ref-status']) $(id).textContent = '';
   $('portal-ack').value = '';
   portal.clear();
   $('cards').replaceChildren();
   form.reset();
-  for (const id of ['contacts', 'sms', 'bank', 'ack']) $(id).value = '';
+  for (const id of ['contacts', 'sms', 'ack', 'bank-ref']) $(id).value = '';
   $('fraud-type').value = '';
   for (const id of ['review', 'preview']) $(id).hidden = true;
   $('doc').replaceChildren();

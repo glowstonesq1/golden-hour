@@ -405,5 +405,34 @@
     "ackPortal": "Starts with 2: a complaint filed on the portal.",
     "ackCall": "Starts with 3: a complaint registered by calling 1930.",
     "ackOther": "Saved. It does not start with 2 or 3, so check it matches the SMS."
+  },
+  "bank": {
+    "pick": "Your bank",
+    "other": "Other or not listed",
+    "write": "Write to my bank",
+    "copy": "Copy the text",
+    "copied": "Copied. Paste it into an email or the bank's fraud form.",
+    "listed": "Fraud contact from the bank's own website, checked on {date}:",
+    "notListed": "We have not checked this bank's fraud contact yet. Use the Report fraud option in your bank's own app, or call the number on the back of your card. Never use a number you found by searching, or one that came in a message.",
+    "refLabel": "Bank complaint number",
+    "refSave": "Save",
+    "refSaved": "Saved to your case on this phone.",
+    "refInvalid": "Type the complaint number exactly as the bank gave it: letters, numbers, / or -.",
+    "liability": "If you did not make the payment yourself, RBI rules limit what you lose when you report it quickly, so tell the bank at once. If you made the payment yourself because you were tricked, those rules may not apply. Report it anyway.",
+    "email": {
+      "subject": "Fraud report: unauthorised transactions of {amount} on {date}",
+      "greeting": "Dear Sir or Madam,",
+      "request": "I am reporting fraudulent transactions on my account. Please block my debit card, UPI and net banking at once, treat these transactions as unauthorised and fraudulent, and give me a complaint number.",
+      "amount": "Amount",
+      "date": "Date",
+      "utrs": "Transaction IDs (UTR)",
+      "ack": "1930 / cybercrime.gov.in acknowledgement number",
+      "confirm": "Please confirm in writing, with a complaint number.",
+      "regards": "Regards,",
+      "namePlaceholder": "[Your name]",
+      "mobilePlaceholder": "[Your registered mobile number]",
+      "notKnown": "[not known yet]",
+      "more": "and {n} more"
+    }
   }
 }

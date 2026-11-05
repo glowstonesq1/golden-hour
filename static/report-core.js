@@ -162,3 +162,26 @@ export function reportText(r) {
   out.push(r.declaration, '', ...r.sign.map(([k, val]) => `${k}: ${val}`), '', r.footer);
   return out.join('\n');
 }
+
+// The email to the bank: block, treat as unauthorised or fraud, give a complaint number.
+// The body stays under 1,800 characters so mail apps open the mailto link; extra UTRs are summarised.
+export const MAX_EMAIL_BODY = 1800;
+export function bankEmail(d, t) {
+  const v = (x, ph) => norm(x) || ph;
+  const lines = (utrs) => [
+    t.greeting, '', t.request, '',
+    `${t.amount}: ${v(d.amount, t.notKnown)}`,
+    `${t.date}: ${v(d.date, t.notKnown)}`,
+    `${t.utrs}: ${utrs || t.notKnown}`,
+    `${t.ack}: ${v(d.ack, t.notKnown)}`,
+    '', t.confirm, '', t.regards, v(d.name, t.namePlaceholder), v(d.mobile, t.mobilePlaceholder),
+  ].join('\n');
+  const all = d.utrs || [];
+  let body = lines(all.join(', '));
+  for (let n = all.length - 1; body.length > MAX_EMAIL_BODY && n > 0; n--) {
+    body = lines(`${all.slice(0, n).join(', ')} ${fill(t.more, { n: all.length - n })}`);
+  }
+  body = body.slice(0, MAX_EMAIL_BODY);
+  const subject = fill(t.subject, { amount: v(d.amount, t.notKnown), date: v(d.date, t.notKnown) });
+  return { subject, body, mailto: `mailto:${encodeURIComponent(d.to || '')}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}` };
+}

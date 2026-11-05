@@ -5,6 +5,7 @@ import { readFile, writeFile, mkdir, cp, rm, readdir } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { BANKS } from './static/proof-core.js';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
 export const SOURCE_URL = 'https://github.com/glowstonesq1/golden-hour';
@@ -60,7 +61,7 @@ const field = (id, label, type = 'text', extra = '') =>
   `<div class="field"><label for="${id}">${esc(label)}</label><input id="${id}" type="${type}" ${extra}></div>`;
 
 // Only what report.js writes at run time; everything else is already in the markup.
-function journeyStrings(s) {
+function journeyStrings(s, banks) {
   const r = s.report;
   const h = s.help;
   const pick = (o, keys) => Object.fromEntries(keys.map((k) => [k, o[k]]));
@@ -72,6 +73,8 @@ function journeyStrings(s) {
       'confirmed', 'leftOut', 'totalLine']),
     steps: Object.fromEntries(h.steps.map((st) => [st.id, st.title])),
     portal: pick(s.portal, ['stageN', 'copy', 'copied', 'notYet', 'evidenceReady', 'evidenceFail', 'ackPortal', 'ackCall', 'ackOther']),
+    bank: pick(s.bank, ['listed', 'notListed', 'copied', 'refSaved', 'refInvalid', 'email']),
+    banks,
   };
 }
 
@@ -107,13 +110,31 @@ function stepExtra(s, p, id) {
             <textarea id="sms" rows="5" aria-describedby="sms-hint" spellcheck="false"></textarea>
             <button type="button" id="find" class="secondary">${esc(h.find)}</button>
           </details>
-          ${field('bank', r.bank, 'text', 'autocomplete="off"')}
           <section id="review" class="review reveal" hidden aria-labelledby="review-title">
             <h3 id="review-title" tabindex="-1">${esc(h.cardsTitle)}</h3>
             <p class="hint">${esc(h.cardsHint)}</p>
             <div id="cards"></div>
             <p id="total-line" class="total-line"></p>
           </section>
+        </div>`;
+  }
+  if (id === 'bank') {
+    const b = s.bank;
+    const names = BANKS.map(([name]) => `<option>${esc(name)}</option>`).join('');
+    return `
+        <div class="js-only" hidden>
+          <div class="field"><label for="bank-pick">${esc(b.pick)}</label><select id="bank-pick"><option value="">${esc(b.other)}</option>${names}</select></div>
+          <p id="bank-contact" class="hint"></p>
+          <p class="hint">${esc(b.liability)}</p>
+          <div class="actions">
+            <a id="bank-write" class="primary" href="mailto:">${esc(b.write)}</a>
+            <button type="button" id="bank-copy" class="secondary">${esc(b.copy)}</button>
+          </div>
+          <p id="bank-status" class="status" role="status" aria-live="polite"></p>
+          <label for="bank-ref">${esc(b.refLabel)}</label>
+          <div class="inline-field"><input id="bank-ref" type="text" autocomplete="off" maxlength="30" spellcheck="false">
+          <button type="button" id="bank-ref-save" class="secondary">${esc(b.refSave)}</button></div>
+          <p id="bank-ref-status" class="status" role="status" aria-live="polite"></p>
         </div>`;
   }
   if (id === 'portal') {
@@ -154,7 +175,7 @@ function stepExtra(s, p, id) {
   return '';
 }
 
-function journeyPage(s, p) {
+function journeyPage(s, p, banks) {
   const r = s.report;
   const h = s.help;
   const types = Object.entries(s.check.types).filter(([k]) => k !== 'unknown').map(([k, v]) => `<option value="${k}">${esc(v.name)}</option>`).join('');
@@ -226,7 +247,7 @@ function journeyPage(s, p) {
       <button type="button" id="clear" class="text-button">${esc(h.clearCase)}</button>
       <p id="clear-status" class="status" role="status" aria-live="polite"></p>
     </div>
-    <div id="report-strings" hidden data-t="${esc(JSON.stringify(journeyStrings(s)))}"></div>`;
+    <div id="report-strings" hidden data-t="${esc(JSON.stringify(journeyStrings(s, banks)))}"></div>`;
 }
 
 // Old addresses (report/, case/) are plain pages that forward to the journey, so they work offline,
@@ -237,7 +258,7 @@ const movedPage = (s, p, page) => `${callButton(s)}
     <p>${esc(s.moved.body)}</p>
     <p><a class="secondary" href="${p}${MOVED[page]}">${esc(s.moved.link)}</a></p>`;
 
-function body(s, lang, page) {
+function body(s, lang, page, banks) {
   const p = LANGS[lang];
   if (page === '') {
     const steps = Object.fromEntries(s.help.steps.map((st) => [st.id, st.title]));
@@ -263,7 +284,7 @@ function body(s, lang, page) {
       </div>
     </section>`;
   }
-  if (page === 'help/') return journeyPage(s, p);
+  if (page === 'help/') return journeyPage(s, p, banks);
   if (MOVED[page]) return movedPage(s, p, page);
   if (page === 'check/') {
     const signs = s.check.signs.map((x) => `<li>${esc(x)}</li>`).join('');
@@ -306,7 +327,7 @@ function title(s, page) {
   return `${t} | ${s.siteName}`;
 }
 
-export function renderPage(strings, lang, page) {
+export function renderPage(strings, lang, page, banks = []) {
   const s = strings[lang];
   const p = LANGS[lang];
   const langLinks = Object.keys(LANGS)
@@ -335,7 +356,7 @@ export function renderPage(strings, lang, page) {
     <a class="brand" href="${p}"><span class="brand-mark" aria-hidden="true"></span>${esc(s.siteName)}</a>
     <nav class="langs" aria-label="${esc(s.langLabel)}">${langLinks}</nav>
   </header></div>
-  <main>${body(s, lang, page)}
+  <main>${body(s, lang, page, banks)}
   </main>
   <footer>
     <p>${esc(s.footer.disclaimer)}</p>
@@ -381,6 +402,10 @@ export function manifest(strings, lang) {
   };
 }
 
+export async function loadBanks() {
+  return validateBanks(JSON.parse(await readFile(join(ROOT, 'data/banks.json'), 'utf8')).banks, BANKS.map(([name]) => name));
+}
+
 export async function loadStrings() {
   const out = {};
   for (const lang of Object.keys(LANGS)) {
@@ -390,6 +415,30 @@ export async function loadStrings() {
 }
 
 export const isOcrFile = (f) => f.startsWith('/vendor/') || f === '/ocr.js';
+
+// data/banks.json: every entry must name a known bank, give an email or phone, and cite a page on the
+// bank's own domain (or rbi.org.in) with the date it was checked. The build stops on any bad entry.
+export function validateBanks(list, names, today = new Date().toISOString().slice(0, 10)) {
+  for (const b of list) {
+    const where = b?.name || JSON.stringify(b);
+    if (!names.includes(b.name)) throw new Error(`banks.json: unknown bank name: ${where}`);
+    if (!Array.isArray(b.domains) || !b.domains.length) throw new Error(`banks.json: no domains for ${where}`);
+    if (!b.email && !b.phone) throw new Error(`banks.json: no email or phone for ${where}`);
+    if (b.email && !/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(b.email)) throw new Error(`banks.json: bad email for ${where}`);
+    if (b.phone && !/^\+?[\d ]{8,16}$/.test(b.phone)) throw new Error(`banks.json: bad phone for ${where}`);
+    let host = '';
+    try {
+      const u = new URL(b.source);
+      if (u.protocol === 'https:') host = u.hostname;
+    } catch {
+      // handled below
+    }
+    const allowed = [...b.domains, 'rbi.org.in'];
+    if (!host || !allowed.some((d) => host === d || host.endsWith(`.${d}`))) throw new Error(`banks.json: source is not https on the bank's own domain or rbi.org.in: ${where}`);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(b.checked || '') || b.checked > today) throw new Error(`banks.json: bad checked date for ${where}`);
+  }
+  return list;
+}
 
 async function listFiles(dir, base = dir) {
   const out = [];
@@ -403,6 +452,7 @@ async function listFiles(dir, base = dir) {
 
 export async function build(outDir = join(ROOT, 'dist')) {
   const strings = await loadStrings();
+  const banks = await loadBanks();
   await rm(outDir, { recursive: true, force: true });
   await mkdir(outDir, { recursive: true });
   await cp(join(ROOT, 'static'), outDir, { recursive: true });
@@ -413,7 +463,7 @@ export async function build(outDir = join(ROOT, 'dist')) {
     for (const page of PAGES) {
       const dir = join(outDir, p, page);
       await mkdir(dir, { recursive: true });
-      await writeFile(join(dir, 'index.html'), renderPage(strings, lang, page));
+      await writeFile(join(dir, 'index.html'), renderPage(strings, lang, page, banks));
     }
     await writeFile(join(outDir, p, 'manifest.webmanifest'), JSON.stringify(manifest(strings, lang), null, 2));
   }
@@ -424,7 +474,10 @@ export async function build(outDir = join(ROOT, 'dist')) {
   const files = (await listFiles(outDir)).sort();
   const hash = createHash('sha256');
   for (const f of files) hash.update(f).update(await readFile(join(outDir, f)));
-  const precache = files.filter((f) => !isOcrFile(f)).map((f) => f.replace(/index\.html$/, ''));
+  // The two 512 px icons are only fetched by the browser when the app is installed (online), never shown
+  // by a page, so they stay out too: about a sixth of the offline copy.
+  const installOnly = new Set(['/icons/icon-512.png', '/icons/icon-maskable-512.png']);
+  const precache = files.filter((f) => !isOcrFile(f) && !installOnly.has(f)).map((f) => f.replace(/index\.html$/, ''));
   const sw = (await readFile(join(ROOT, 'static/sw.js'), 'utf8'))
     .replace('__VERSION__', hash.digest('hex').slice(0, 12))
     .replace('__PRECACHE__', JSON.stringify(precache))

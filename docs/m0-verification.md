@@ -38,3 +38,11 @@ How the app uses this: Help shows one plain rule, "For frauds from 1 January 202
 
 - Quick Heal Victim Support and Google's scam warnings need a real phone; Kaif should try both once and note what they cover.
 - reverse-engineer-anything applies to shipped binaries and packages. No such artifact is in scope yet; it becomes relevant if we inspect a competitor's APK.
+
+## v2 (November 2026): facts reported but not yet confirmed here
+
+The v2 build workspace could not reach rbi.org.in, cybercrime.gov.in, mrm-ncrp.mha.gov.in or any bank's website. The facts below come from the owner's research of 4 November 2026. Where the app relies on one, its wording stays general until someone confirms it on the official page and records the URL and date here.
+
+- **Bank fraud reporting (RBI circular, July 2017):** banks must take fraud reports 24x7 (website, SMS, email, IVR, toll-free number), let customers reply to the alert, and acknowledge with a complaint number; zero liability for unauthorised electronic transactions reported within 3 working days, limited after that. *Unconfirmed.* The app says only that RBI rules limit the loss when an unauthorised payment is reported quickly, and that they may not apply when the person paid under a trick. From 1 January 2027 the 2026 amendments above (5 calendar days for third-party breaches) apply instead.
+- **Bank fraud contacts:** none listed. `data/banks.json` takes an entry only with a source page on the bank's own domain (or rbi.org.in) and a checked date; the build enforces this. Until then every bank gets: use the Report fraud option in the bank's own app or the number on the card, never a searched number.
+- **NCRP portal flow, upload limit and acknowledgement prefixes:** see [ncrp-walkthrough.md](ncrp-walkthrough.md) for the checklist.

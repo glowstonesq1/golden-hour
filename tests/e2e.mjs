@@ -305,6 +305,26 @@ const dlSize = (await import('node:fs')).statSync(dlPath).size;
 check(dlSize > 0 && dlSize < 5 * 1024 * 1024 && download.suggestedFilename() === 'golden-hour-evidence-01.jpg', `evidence: an image over 5 MB comes out as a JPEG under 5 MB (${(dlSize / 1048576).toFixed(2)} MB)`);
 await rp.click('#stage-next');
 check((await rp.innerText('#stage-count')) === 'Stage 7 of 7' && await rp.locator('#stage-next').isDisabled(), 'portal: last stage reached; Next is disabled');
+// Tell the bank: chosen from the list, a prefilled email, the complaint number saved.
+check(['State Bank of India', 'HDFC Bank'].includes(await rp.inputValue('#bank-pick')), 'bank: the confirmed bank is preselected');
+check((await rp.innerText('#bank-contact')).includes('Report fraud option in your bank'), 'bank: not yet verified, so the person is sent to the bank app or card, never a search');
+const mailto = await rp.getAttribute('#bank-write', 'href');
+const mailBody = decodeURIComponent(mailto.split('body=')[1]);
+check(mailto.startsWith('mailto:?subject=') && mailBody.includes('Rs 13,499.50') && mailBody.includes('482910384756, 773829104857') && mailBody.includes('31910280012345') && mailBody.length <= 1800,
+  'bank: Write to my bank opens an email with the amount, UTRs and acknowledgement number, under 1,800 characters');
+await rp.click('#bank-copy');
+check((await rp.evaluate('window.__copied')).startsWith('Fraud report: unauthorised transactions of Rs 13,499.50'), 'bank: Copy the text gives subject and body');
+await rp.fill('#bank-ref', 'x');
+await rp.click('#bank-ref-save');
+check((await rp.innerText('#bank-ref-status')).includes('exactly as the bank gave it'), 'bank: a malformed complaint number is refused');
+await rp.fill('#bank-ref', 'HDFC/2026/88123');
+await rp.click('#bank-ref-save');
+c = await savedCase(rp);
+check(c.bankRef === 'HDFC/2026/88123' && !!c.done?.bank, 'bank: complaint number saved and the step marked done');
+await rp.selectOption('#bank-pick', '');
+check(!(await savedCase(rp)).bank, 'bank: choosing Other removes the bank from the case');
+await rp.selectOption('#bank-pick', 'HDFC Bank');
+
 await rp.fill('#portal-ack', '2191028001');
 await rp.click('#portal-ack-save');
 check((await rp.innerText('#portal-ack-status')).includes('14 digits'), 'portal ack: an invalid number is rejected with a helpful message');
@@ -405,6 +425,8 @@ check(await cp.evaluate('window.__started.local === false'), 'mic: after consent
 await cp.click('.report-form > button.primary');
 await cp.locator('#doc').waitFor();
 check((await cp.innerText('#doc')).includes('विषय: Rs 13,499.50 की ऑनलाइन वित्तीय धोखाधड़ी की शिकायत'), 'letter: Hindi letter');
+const hiBody = decodeURIComponent((await cp.getAttribute('#bank-write', 'href')).split('body=')[1]);
+check(hiBody.includes('कृपया मेरा डेबिट कार्ड, UPI और नेट बैंकिंग तुरंत बंद करें') && hiBody.includes('Rs 13,499.50'), 'bank: the Hindi email decodes correctly');
 for (let i = 0; i < 6; i++) await cp.click('#stage-next');
 await cp.fill('#portal-ack', '21910280012345');
 await cp.click('#portal-ack-save');
