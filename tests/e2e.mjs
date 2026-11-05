@@ -499,7 +499,7 @@ await fp.setInputFiles('#files', [
 await fp.locator('#review:not([hidden])').waitFor({ timeout: 120000 });
 const pickedUtrs = await fp.locator('.card[data-kind="utr"] .card-value').allInnerTexts();
 check(pickedUtrs.includes('482910384756') && pickedUtrs.includes('773829104857'), `picked screenshots: both UTRs read on the phone (${pickedUtrs})`);
-await confirmCards(fp, ['amount']);
+await confirmCards(fp, ['amount', 'utr']);
 check((await savedCase(fp)).amount === '13499.50', 'picked screenshots: total from the two confirmed amounts');
 await fp.setInputFiles('#files', { name: 'WhatsApp Chat with Agent.zip', mimeType: 'application/zip', buffer: chatZip });
 await fp.locator('.card[data-kind="scammer"]').first().waitFor({ timeout: 20000 });
